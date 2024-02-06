@@ -22,6 +22,6 @@ dependencies = [
 [project.urls]
 "Homepage" = "https://github.com/tianzhuqiao/mplpanel"
 
-[tool.setuptools.packages]
-find = {}
+[tool.setuptools]
+packages = ["mplpanel"]
 
