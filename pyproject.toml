@@ -4,7 +4,6 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "mplpanel"
-version = "0.1.0"
 authors = [
   { name="Tianzhu Qiao", email="tq@feiyilin.com" },
 ]
@@ -18,6 +17,11 @@ classifiers = [
 dependencies = [
           'wxpython>=4.2.1'
       ]
+
+dynamic = ["version"]
+
+[tool.setuptools.dynamic]
+version = {attr = "mplpanel.version.__version__"}
 
 [project.urls]
 "Homepage" = "https://github.com/tianzhuqiao/mplpanel"

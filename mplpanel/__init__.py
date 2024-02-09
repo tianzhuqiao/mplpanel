@@ -1,3 +1,4 @@
+from .version import __version__
 from .graph_common import *
 from .graph_datatip import *
 from .graph_edit import *
