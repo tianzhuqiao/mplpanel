@@ -1,5 +1,5 @@
 # mplpanel
-**mplpanel** is a wx.Panel that makes it easy to use matplotlibplot in wxPython application.
+**mplpanel** is a wx.Panel that makes it easy to use matplotlib plot in wxPython application.
 
 1. Install
 ```bash
@@ -37,4 +37,4 @@ class MainFrame(wx.Frame):
 ```
 Check the demo for details.
 
-<img src="https://github.com/tianzhuqiao/mplpane/raw/main/image/demo.png"  width="600"></img>
+<img src="https://github.com/tianzhuqiao/mplpanel/blob/main/image/demo.png?raw=true"  width="600"></img>
