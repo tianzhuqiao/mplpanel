@@ -258,5 +258,18 @@ def add_axes(ax, target, direction, edge=False):
 def move_axes(ax, target, direction, edge=False):
     if ax is None:
         return
+    # remember the sharex/y
+    sharex = ax._sharex
+    sharey = ax._sharey
+
+    # delete the axes temporary
     del_subplot(ax)
+
+    # reset the sharex/y
+    if sharex:
+        ax.sharex(sharex)
+    if sharey:
+        ax.sharey(sharey)
+
+    # add the axes back to the figure
     add_axes(ax, target, direction, edge=edge)

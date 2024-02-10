@@ -3,6 +3,7 @@ import matplotlib
 import aui2 as aui
 from .graph_common import GraphObject
 from .graph_subplot import move_axes, get_top_gridspec, get_gridspec
+
 class GDock(GraphObject):
     def __init__(self, figure):
         super().__init__(figure)
@@ -250,7 +251,7 @@ class GDock(GraphObject):
             pt = wx.Point()
             guide_size = guide.host.GetSize()
             if not guide.host:
-                raise Exception("Invalid docking host")
+                raise ValueError("Invalid docking host")
 
             direction = guide.dock_direction
 
@@ -295,8 +296,6 @@ class GDock(GraphObject):
                 guide.host.Refresh()
 
     def HitTestDockGuide(self):
-        """
-        """
         screenPt = wx.GetMousePosition()
 
         # search the dock guides.
