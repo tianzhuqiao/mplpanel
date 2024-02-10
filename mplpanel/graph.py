@@ -749,6 +749,7 @@ class MPLPanel(wx.Panel):
         self.isdestory = True
         self.close_event()
         self.canvas.stop_event_loop()
+        Gcf.destroy(self.num)
         return super().Destroy(*args, **kwargs)
 
     def GetTitle(self):
