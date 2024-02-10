@@ -102,6 +102,7 @@ class Toolbar(GraphToolbar):
     ID_FLIP_Y_AXIS = wx.NewIdRef()
     ID_FLIP_X_AXIS = wx.NewIdRef()
     ID_COPY_SUBPLOT = wx.NewIdRef()
+    ID_LINES = []
 
     def __init__(self, canvas, figure):
         if matplotlib.__version__ < '3.3.0':
@@ -279,6 +280,18 @@ class Toolbar(GraphToolbar):
         if wx.Platform != '__WXMAC__':
             item.SetBitmap(svg_to_bitmap(delete_svg, win=self))
         menu.Append(self.ID_DELETE_LINES, "Delete all lines")
+        menu_delete = wx.Menu()
+        i = 0
+        for ax in axes:
+            for l in ax.lines:
+                label = l.get_label()
+                if not l.get_visible() or label.startswith('_bsm'):
+                    continue
+                while i >= len(self.ID_LINES):
+                    self.ID_LINES.append(wx.NewIdRef())
+                menu_delete.Append(self.ID_LINES[i], label)
+                i += 1
+        menu.AppendSubMenu(menu_delete, 'Delete')
         menu.AppendSeparator()
         item = menu.AppendCheckItem(self.ID_FLIP_Y_AXIS, "Flip y axis")
         item.Check(all([ax.yaxis.get_inverted() for ax in axes]))
@@ -335,15 +348,28 @@ class Toolbar(GraphToolbar):
             self._nav_stack.clear()
         elif cmd == self.ID_DELETE_SUBPLOT:
             for ax in axes:
+                # notify others that we are planning to delete the subplot.
+                dp.send('graph.remove_line', lines = ax.lines)
                 del_subplot(ax)
             self._nav_stack.clear()
         elif cmd == self.ID_DELETE_LINES:
             for ax in axes:
                 grid_on = any(line.get_visible() for line in ax.get_xgridlines() + ax.get_ygridlines())
+                dp.send('graph.remove_line', lines = ax.lines)
                 ax.cla()
                 if grid_on:
                     ax.grid(True)
             self._nav_stack.clear()
+        elif cmd in self.ID_LINES:
+            i = 0
+            for ax in axes:
+                for l in ax.lines:
+                    if i == self.ID_LINES.index(cmd):
+                        dp.send('graph.remove_line', lines=[l])
+                        l.remove()
+                        ax.legend()
+                        break
+                    i += 1
         elif cmd == self.ID_FLIP_Y_AXIS:
             for ax in axes:
                 ax.invert_yaxis()
@@ -380,6 +406,7 @@ class Toolbar(GraphToolbar):
                         wx.TheClipboard.SetData(bmp_obj)
                         wx.TheClipboard.Flush()
                         wx.TheClipboard.Close()
+
         else:
             self.ProcessCommand(cmd, axes)
 

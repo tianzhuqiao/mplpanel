@@ -1,14 +1,14 @@
-import matplotlib
 import datetime
 import math
 import wx
 import wx.py.dispatcher as dp
+import matplotlib
 import numpy as np
 import pandas as pd
-from .graph_common import GraphObject
-from .utility import send_data_to_shell
 import propgrid as pg
 from propgrid import prop
+from .graph_common import GraphObject
+from .utility import send_data_to_shell
 
 class DataCursor(GraphObject):
     xoffset, yoffset = -20, 20
@@ -53,6 +53,19 @@ class DataCursor(GraphObject):
                 ]
         self.LoadConfig()
         self.cx, self.cy = None, None
+        dp.connect(self.OnRemoveLine, 'graph.remove_line')
+
+    def OnRemoveLine(self, lines):
+        if not any(line in self.lines for line in lines):
+            return
+        for line in lines:
+            for idx in range(len(self.lines)-1, -1, -1):
+                if line == self.lines[idx]:
+                    if self.active == self.annotations[idx]:
+                        self.active = None
+                    self.annotations[idx].remove()
+                    del self.annotations[idx]
+                    del self.lines[idx]
 
     def pick(self, event):
         # pick event will not always be triggered for twinx, see following link
@@ -413,7 +426,6 @@ class DataCursor(GraphObject):
     def ApplyConfig(self, ant, config=None):
         if not config:
             config = ant.config
-        clr = None
         alpha = 50
         if self.active == ant:
             clr_edge = config['clr_edge_selected']
@@ -451,12 +463,12 @@ class DataCursor(GraphObject):
 
 
 class DatatipSettingDlg(wx.Dialog):
-    def __init__(self, settings, active, parent, id=-1, title='Settings ...',
+    def __init__(self, settings, active, parent, title='Settings ...',
                  size=wx.DefaultSize, pos=wx.DefaultPosition,
                  style=wx.DEFAULT_DIALOG_STYLE|wx.RESIZE_BORDER):
         wx.Dialog.__init__(self)
         self.SetExtraStyle(wx.DIALOG_EX_CONTEXTHELP)
-        self.Create(parent, id, title, pos, size, style)
+        self.Create(parent, title=title, pos=pos, size=size, style=style)
 
         self.settings = settings
         self.propgrid = pg.PropGrid(self)
