@@ -33,6 +33,14 @@ class Timeline(GraphObject):
         ret, self.axvline = self._is_close_to_axvline(event.inaxes, x, y)
         if ret:
             self.draggable = True
+        else:
+            # looks like for the first click, event.key is always 'none', so use
+            # the one from wxPython
+            if wx.GetKeyState(wx.WXK_SHIFT):
+                for ax in [event.inaxes]:
+                    self.create_axvline_if_needed(ax)
+                    xdata = event.xdata
+                    self.update_legend([ax], xdata)
 
     def _is_close_to_axvline(self, ax, x, y):
         # check if (x, y) is close to the axvline in ax
