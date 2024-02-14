@@ -779,6 +779,12 @@ class MPLPanel(wx.Panel):
         Gcf.destroy(self.num)
         return super().Destroy(*args, **kwargs)
 
+    def show(self):
+        """show figure"""
+        if self.IsShownOnScreen() is False:
+            self.canvas.draw()
+            dp.send('frame.show_panel', panel=self)
+
     def GetTitle(self):
         """return the figure title"""
         return self.title
