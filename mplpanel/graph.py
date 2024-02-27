@@ -356,9 +356,16 @@ class Toolbar(GraphToolbar):
             for ax in axes:
                 grid_on = any(line.get_visible() for line in ax.get_xgridlines() + ax.get_ygridlines())
                 dp.send('graph.remove_line', lines = ax.lines)
+                xlim = ax.get_xlim()
+                ylim = ax.get_ylim()
                 ax.cla()
                 if grid_on:
                     ax.grid(True)
+                # if ax shares itself to other axes, but none axes shares it
+                # to ax, then cla() will set the limit to [0, 1], keep the
+                # limit as before
+                ax.set_xlim(xlim)
+                ax.set_ylim(ylim)
             self._nav_stack.clear()
         elif cmd in self.ID_LINES:
             i = 0
@@ -797,6 +804,11 @@ class MPLPanel(wx.Panel):
 
     def set_window_title(self, title):
         self.SetTitle(title)
+
+    @classmethod
+    def GetActive(cls):
+        """get the active figure"""
+        return Gcf.get_active()
 
     @classmethod
     def SetActive(cls, pane):
