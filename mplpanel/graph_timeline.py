@@ -107,7 +107,7 @@ class Timeline(GraphObject):
 
     def _get_sharex(self, ax):
         sharex = ax
-        if sharex and sharex._sharex:
+        while sharex and sharex._sharex:
             sharex = sharex._sharex
         return sharex
 
