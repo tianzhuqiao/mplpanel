@@ -61,28 +61,31 @@ class Timeline(GraphObject):
         axes = self._get_axes(axes, sharex=True)
         for ax in axes:
             axvline, x, y, idx = None, None, None, None
-            if not self._has_axvline(ax):
+            axvline = self._get_axvline(ax)
+            if axvline is None:
                 continue
+
+            if xdata is None:
+                xdata = axvline.get_xdata()[0]
+
             for l in ax.lines:
                 if self._is_axvline(l):
-                    axvline = l
                     continue
                 label = l.get_label()
                 if label.startswith('_'):
+                    # legend is not visible
                     continue
 
                 label = label.split(' ')
                 if len(label) > 1:
                     label = label[:-1]
                 label = ' '.join(label)
-                if xdata is not None:
-                    x = l.get_xdata()
-                    y = l.get_ydata()
-                    idx = np.argmin(np.abs(x - xdata))
-                    label = f'{label} {y[idx]}'
+                x = l.get_xdata()
+                y = l.get_ydata()
+                idx = np.argmin(np.abs(x - xdata))
+                label = f'{label} {y[idx]}'
                 l.set_label(label)
-            if xdata is not None and axvline is not None and x is not None and \
-               y is not None and idx is not None:
+            if x is not None and idx is not None:
                 axvline.set_xdata([x[idx], x[idx]])
                 self.axvline_idx[ax] = idx
             if ax.get_legend() is not None:
