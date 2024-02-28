@@ -273,3 +273,24 @@ def move_axes(ax, target, direction, edge=False):
 
     # add the axes back to the figure
     add_axes(ax, target, direction, edge=edge)
+
+def get_sharex(axes):
+    # get all shared x-axis in axes
+    all_sharex = set()
+    for ax in axes:
+        sharex = ax
+        while sharex and sharex._sharex:
+            sharex = sharex._sharex
+        if ax != sharex:
+            all_sharex.add(sharex)
+    return all_sharex
+
+def get_sharey(axes):
+    all_sharey = set()
+    for ax in axes:
+        sharey = ax
+        while sharey and sharey._sharey:
+            sharey = sharey._sharey
+        if ax != sharey:
+            all_sharey.add(sharey)
+    return all_sharey

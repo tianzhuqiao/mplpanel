@@ -22,7 +22,7 @@ from .graph_svg import split_vert_svg, delete_svg, line_style_svg, \
                     forward_svg, forward_gray_svg, zoom_svg, pan_svg, copy_svg, \
                     save_svg, edit_svg, note_svg, timeline_svg
 from .graph_toolbar import GraphToolbar
-from .graph_subplot import add_subplot, del_subplot
+from .graph_subplot import add_subplot, del_subplot, get_sharex, get_sharey
 rcParams.update({'figure.autolayout': True, 'toolbar': 'None',
                  'path.simplify_threshold': 1})
 matplotlib.interactive(True)
@@ -353,6 +353,8 @@ class Toolbar(GraphToolbar):
                 del_subplot(ax)
             self._nav_stack.clear()
         elif cmd == self.ID_DELETE_LINES:
+            sharex = get_sharex(self.figure.axes)
+            sharey = get_sharey(self.figure.axes)
             for ax in axes:
                 grid_on = any(line.get_visible() for line in ax.get_xgridlines() + ax.get_ygridlines())
                 dp.send('graph.remove_line', lines = ax.lines)
@@ -364,9 +366,10 @@ class Toolbar(GraphToolbar):
                 # if ax shares itself to other axes, but none axes shares it
                 # to ax, then cla() will set the limit to [0, 1], keep the
                 # limit as before
-                ax.set_xlim(xlim)
-                ax.set_ylim(ylim)
-            self._nav_stack.clear()
+                if ax in sharex:
+                    ax.set_xlim(xlim)
+                if ax in sharey:
+                    ax.set_ylim(ylim)
         elif cmd in self.ID_LINES:
             i = 0
             for ax in axes:
