@@ -33,15 +33,18 @@ class LineEditor(GraphObject):
 
         dp.connect(self.OnRemoveLine, 'graph.remove_line')
 
-    def update(self, axes):
+    def update(self, figure, axes):
+        if not super().update(figure, axes):
+            return False
+
         # axes is updated, try to update the active marker
         if self.active_line is None or self.active_line.axes not in axes:
-            return
+            return False
 
         x, y = self.active_line.get_data()
         self.marker[self.active_line.axes].set_data([x[self.index]], [y[self.index]])
         self.figure.canvas.draw_idle()
-        super().update(axes)
+        return True
 
     def OnRemoveLine(self, lines):
         if self.active_line is not None and  self.active_line in lines:
@@ -140,6 +143,7 @@ class LineEditor(GraphObject):
                 y[self.index] = my
             self.marker[self.active_line.axes].set_data([x[self.index]], [y[self.index]])
             self.active_line.set_data(x, y)
+            self.notify_update([self.active_line.axes])
         self.figure.canvas.draw_idle()
 
     def mouse_released(self, event):

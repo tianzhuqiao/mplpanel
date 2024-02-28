@@ -1,13 +1,21 @@
 import wx
+import wx.py.dispatcher as dp
 import numpy as np
 
 class GraphObject():
     def __init__(self, figure):
         self.figure = figure
+        dp.connect(receiver=self.update, signal='graph.axes_updated')
 
-    def update(self, axes):
+    def update(self, figure, axes):
         # the axes/liens has been updated
-        pass
+        if self.figure != figure:
+            return False
+        return True
+
+    def notify_update(self, axes):
+        # notify others that the data of axes has changed
+        dp.send('graph.axes_updated', figure=self.figure, axes=axes)
 
     def get_xy_dis_gain(self, ax=None):
         # the gain applied to x/y when calculate the distance between to point

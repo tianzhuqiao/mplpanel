@@ -312,14 +312,16 @@ class DataCursor(GraphObject):
                 return ant
         return None
 
-    def update(self, axes):
+    def update(self, figure, axes):
+        if not super().update(figure, axes):
+            return False
         # axes is updated, try to update all the datatip
         for ant in self.annotations:
             if ant.line.axes in axes:
                 ant.update()
 
         self.figure.canvas.draw()
-        super().update(axes)
+        return True
 
     def mouse_pressed(self, event):
         """

@@ -56,6 +56,12 @@ class Timeline(GraphObject):
                 return True, axvline
         return False, None
 
+    def update(self, figure, axes):
+        if not super().update(figure, axes):
+            return
+
+        self.update_legend(axes)
+
     def update_legend(self, axes, xdata = None):
         # update all sharex
         axes = self._get_axes(axes, sharex=True)
