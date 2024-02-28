@@ -8,21 +8,154 @@ import pandas as pd
 import propgrid as pg
 from propgrid import prop
 from .graph_common import GraphObject
-from .utility import send_data_to_shell
+from .utility import send_data_to_shell, _dict
+
+class TextAnt:
+    text_template = 'x: %0.2f\ny: %0.2f'
+    def __init__(self, annotation=None, line=None, index=-1):
+        self.annotation = annotation
+        self.line = line
+        self.index = index
+        self.config = _dict(pos_xy=(-1, 1), fmt_number='.2f',
+                            fmt_datatime='%Y-%m-%d %H:%M:%S',
+                            clr_edge='#8E8E93',
+                            clr_face='#ffffff',
+                            clr_alpha=50,
+                            clr_edge_selected='#8E8E93',
+                            clr_face_selected='#FF9500',
+                            clr_alpha_selected=50)
+
+        self.is_active = False
+
+    def __call__(self):
+        return self.annotation
+
+    def set_active(self, active):
+        if active == self.is_active:
+            return
+
+        self.is_active = active
+        self.update_config()
+
+    def remove(self):
+        try:
+            # the call may fail. For example,
+            # 1) create a figure and plot some curve
+            # 2) create a datatip
+            # 3) call clf() to clear the figure, the datatip will be
+            #    cleared, but we will not know
+            self().remove()
+        except:
+            pass
+
+    def contains(self, mx, my):
+        box = self().get_bbox_patch().get_extents()
+        return box.contains(mx, my)
+
+    def get_data(self):
+        if self.line is None or self.index == -1:
+            return None, None
+        x, y = self.line.get_data(orig=False)
+        return x[self.index], y[self.index]
+
+    def get_orig_data(self):
+        if self.line is None or self.index == -1:
+            return None, None
+        x, y = self.line.get_data()
+        return x[self.index], y[self.index]
+
+    def set_index(self, index):
+        self.index = index
+        self.update()
+        self.update_position()
+        self().set_visible(True)
+
+    def set_position(self, x, y):
+        # x/y is 0/1/-1
+        bbox = self().get_bbox_patch()
+        w, h = bbox.get_width(), bbox.get_height()
+        self().xyann = (x*w - w/2 , y*h-h/2)
+        self.config['pos_xy'] = (x, y)
+
+    def update_position(self):
+        x, y = self.get_position()
+        wx.CallAfter(self.set_position, x, y)
+
+    def get_position(self):
+        return self.config['pos_xy']
+
+    def update(self):
+        x, y = self.get_orig_data()
+        self().set_text(self.xy_to_annotation(x, y))
+        self().xy = self.get_data()
+
+    def xy_to_annotation(self, x, y, fmt=None):
+        if x is None or y is None:
+            return
+        if fmt is None:
+            fmt = self.config
+        x_str = ""
+        y_str = ""
+        if isinstance(x, datetime.date):
+            x_str = f'x: {x.strftime(fmt["fmt_datetime"])}'
+        else:
+            x_str= f'x: {x:{fmt["fmt_number"]}}'
+        if isinstance(y, datetime.date):
+            y_str = f'y: {y.strftime(fmt["fmt_datetime"])}'
+        else:
+            y_str= f'y: {y:{fmt["fmt_number"]}}'
+        return '\n'.join([x_str, y_str])
+
+    def update_config(self, config=None):
+        if config is None:
+            config = self.config
+        self.config = config
+
+        if self.is_active:
+            clr_edge = config['clr_edge_selected']
+            clr_face = config['clr_face_selected']
+            alpha = config['clr_alpha_selected']
+        else:
+            clr_edge = config['clr_edge']
+            clr_face = config['clr_face']
+            alpha = config['clr_alpha']
+
+        self().get_bbox_patch().set_edgecolor(clr_edge)
+        self().get_bbox_patch().set_facecolor(clr_face)
+        self().get_bbox_patch().set_alpha(alpha/100)
+
+        self.update()
+        self.update_position()
+
+    @classmethod
+    def create(cls, ax):
+        """create the annotation"""
+        ant = ax.annotate(cls.text_template,
+                          xy=(0, 0),
+                          xytext=(0, 0),
+                          textcoords='offset pixels',
+                          ha='left',
+                          va='bottom',
+                          bbox={'boxstyle': 'round,pad=0.5',
+                                'fc': '#FF9500',
+                                'alpha': 1},
+                          arrowprops={'arrowstyle': '->',
+                                      'connectionstyle': 'arc3,rad=0'})
+        ant.set_visible(False)
+        annotation = cls(annotation=ant)
+        return annotation
 
 class DataCursor(GraphObject):
-    xoffset, yoffset = -20, 20
-    text_template = 'x: %0.2f\ny: %0.2f'
     MAX_DISTANCE = 5
 
     ID_DELETE_DATATIP = wx.NewIdRef()
     ID_CLEAR_DATATIP = wx.NewIdRef()
     ID_EXPORT_DATATIP = wx.NewIdRef()
     ID_SETTING = wx.NewIdRef()
+
     def __init__(self, figure, win):
         super().__init__(figure)
         self.annotations = []
-        self.lines = []
         self.enable = False
         self.active = None
         self.mx, self.my = None, None
@@ -55,17 +188,20 @@ class DataCursor(GraphObject):
         self.cx, self.cy = None, None
         dp.connect(self.OnRemoveLine, 'graph.remove_line')
 
+    def FindAntIndex(self, ant):
+        if ant not in self.annotations:
+            return -1
+        return self.annotations.index(ant)
+
     def OnRemoveLine(self, lines):
-        if not any(line in self.lines for line in lines):
-            return
-        for line in lines:
-            for idx in range(len(self.lines)-1, -1, -1):
-                if line == self.lines[idx]:
-                    if self.active == self.annotations[idx]:
-                        self.active = None
-                    self.annotations[idx].remove()
-                    del self.annotations[idx]
-                    del self.lines[idx]
+        for idx in range(len(self.annotations)-1, -1, -1):
+            # start from the last annotation, as it may be deleted and change
+            # the list size
+            if self.annotations[idx].line in lines:
+                if self.active == self.annotations[idx]:
+                    self.active = None
+                self.annotations[idx].remove()
+                del self.annotations[idx]
 
     def pick(self, event):
         # pick event will not always be triggered for twinx, see following link
@@ -74,6 +210,7 @@ class DataCursor(GraphObject):
         return
 
     def annotation_line(self, line, mx, my):
+        # add annotation to a line at location (mx, my)
         if not self.enable:
             return False
         if self.get_annotation(mx, my) is not None:
@@ -86,53 +223,37 @@ class DataCursor(GraphObject):
         if dis > self.MAX_DISTANCE:
             return False
 
-        if self.active and self.active.get_visible():
+        if self.active and self.active().get_visible():
             # Check whether the axes of active annotation is same as line,
             # which may happen in a figure with subplots. If not, create one
             # with the axes of line
-            if self.active.axes != line.axes:
+            if self.active().axes != line.axes:
                 self.set_active(None)
         if self.active is None:
             self.create_annotation(line)
-        idx = self.annotations.index(self.active)
-        self.lines[idx] = line
+        idx = self.FindAntIndex(self.active)
+        if idx == -1:
+            return False
+        # update the annotation line, as it may be moved
+        self.annotations[idx].line = line
 
         # set the annotation
         inv = line.axes.transData.inverted()
         dmx, dmy = inv.transform((mx, my))
         didx, dx, dy = self.get_closest(line, dmx, dmy)
-        self.active.xy = dx, dy
-        xs, ys = line.get_data()
-        self.active.xy_orig = xs[didx], ys[didx]
-        self.active.set_text(self.xy_to_annotation(xs[didx], ys[didx]))
-        x, y = self.active.config['pos_xy']
-        wx.CallAfter(self.set_annotation_position, self.active, x, y)
-        self.active.set_visible(True)
+        self.active.set_index(didx)
         self.figure.canvas.draw()
         return True
-
-    def xy_to_annotation(self, x, y, fmt=None):
-        if fmt is None:
-            fmt = self.get_config()
-        x_str = ""
-        y_str = ""
-        if isinstance(x, datetime.datetime):
-            x_str = f'x: {x.strftime(fmt["fmt_datetime"])}'
-        else:
-            x_str= f'x: {x:{fmt["fmt_number"]}}'
-        if isinstance(y, datetime.datetime):
-            y_str = f'y: {y.strftime(fmt["fmt_datetime"])}'
-        else:
-            y_str= f'y: {y:{fmt["fmt_number"]}}'
-        return '\n'.join([x_str, y_str])
 
     def keyboard_move(self, left, step=1):
         if not self.active:
             return
-        idx = self.annotations.index(self.active)
-        line = self.lines[idx]
-        x, y = line.get_xdata(False), line.get_ydata(False)
-        xc, yc = self.active.xy
+        idx = self.FindAntIndex(self.active)
+        if idx == -1:
+            return
+        line = self.annotations[idx].line
+        x, y = line.get_xdata(orig=False), line.get_ydata(orig=False)
+        xc, yc = self.active.get_data()
         idx = (np.square(x - xc)).argmin()
         idx_new = idx
         if left:
@@ -145,23 +266,16 @@ class DataCursor(GraphObject):
             return
         xn, yn = x[idx_new], y[idx_new]
         if xn is not None:
-            self.active.xy = xn, yn
-            xs, ys = line.get_xdata(), line.get_ydata()
-            self.active.xy_orig = xs[idx_new], ys[idx_new]
-            #self.active.set_text(self.text_template % (xn, yn))
-            cx, cy = self.get_annotation_position(self.active)
-            self.active.set_text(self.xy_to_annotation(xs[idx_new], ys[idx_new]))
-            wx.CallAfter(self.set_annotation_position, self.active, cx, cy)
-            self.active.set_visible(True)
+            self.active.set_index(idx_new)
 
     def set_enable(self, enable):
         self.enable = enable
         if self.active:
             config = self.get_config()
             if enable:
-                self.active.get_bbox_patch().set_facecolor(config['clr_face_selected'])
+                self.active().get_bbox_patch().set_facecolor(config['clr_face_selected'])
             else:
-                self.active.get_bbox_patch().set_facecolor(config['clr_face'])
+                self.active().get_bbox_patch().set_facecolor(config['clr_face'])
 
     def mouse_move(self, event):
         """move the annotation position"""
@@ -173,7 +287,7 @@ class DataCursor(GraphObject):
             return False
         # re-position the active annotation based on the mouse movement
         x, y = event.x, event.y
-        bbox = self.active.get_bbox_patch()
+        bbox = self.active().get_bbox_patch()
         w, h = bbox.get_width(), bbox.get_height()
         dx = x - self.mx
         dy = y - self.my
@@ -188,26 +302,24 @@ class DataCursor(GraphObject):
             cy += py
             cx = max(min(cx, 1), -1)
             cy = max(min(cy, 1), -1)
-            self.active.config['pos_xy'] = (cx, cy)
-            self.set_annotation_position(self.active, cx, cy)
+            self.active.set_position(cx, cy)
             return True
         return False
 
-    def set_annotation_position(self, ant, x, y):
-        bbox = ant.get_bbox_patch()
-        w, h = bbox.get_width(), bbox.get_height()
-        ant.xyann = (x*w - w/2 , y*h-h/2)
-        ant.config['pos_xy'] = (x, y)
-
-    def get_annotation_position(self, ant):
-        return ant.config['pos_xy']
-
-    def get_annotation(self, x, y):
+    def get_annotation(self, mx, my):
         for ant in self.annotations:
-            box = ant.get_bbox_patch().get_extents()
-            if box.contains(x, y):
+            if ant.contains(mx, my):
                 return ant
         return None
+
+    def update(self, axes):
+        # axes is updated, try to update all the datatip
+        for ant in self.annotations:
+            if ant.line.axes in axes:
+                ant.update()
+
+        self.figure.canvas.draw()
+        super().update(axes)
 
     def mouse_pressed(self, event):
         """
@@ -224,7 +336,7 @@ class DataCursor(GraphObject):
                 return True
 
         # just created the new annotation, do not move to others
-        if self.active and (not self.active.get_visible()):
+        if self.active and (not self.active().get_visible()):
             return False
         # search the closest annotation
         x, y = event.x, event.y
@@ -232,7 +344,7 @@ class DataCursor(GraphObject):
         active = self.get_annotation(x, y)
         self.set_active(active)
         if self.active:
-            self.cx, self.cy = self.get_annotation_position(self.active)
+            self.cx, self.cy = self.active.get_position()
         # return True for the parent to redraw
         return True
 
@@ -246,7 +358,7 @@ class DataCursor(GraphObject):
 
     def set_active(self, ant):
         """set the active annotation"""
-        if ant and not ant in self.annotations:
+        if ant and self.FindAntIndex(ant) == -1:
             return False
 
         if self.active == ant:
@@ -254,43 +366,31 @@ class DataCursor(GraphObject):
         old_active = self.active
         self.active = ant
         if old_active:
-            self.ApplyConfig(old_active)
+            old_active.set_active(False)
         if self.active:
-            self.ApplyConfig(self.active)
+            self.active.set_active(True)
         self.figure.canvas.draw_idle()
         return True
 
     def get_annotations(self):
         """return all the annotations"""
-        return self.annotations
+        return [ant() for ant in self.annotations]
 
     def create_annotation(self, line):
         """create the annotation and set it active"""
         config = self.get_config()
-        ant = line.axes.annotate(self.text_template,
-                                 xy=(0, 0),
-                                 xytext=(0, 0),
-                                 textcoords='offset pixels',
-                                 ha='left',
-                                 va='bottom',
-                                 bbox={'boxstyle': 'round,pad=0.5',
-                                       'fc': config['clr_face_selected'],
-                                       'alpha': 1},
-                                 arrowprops={'arrowstyle': '->',
-                                             'connectionstyle': 'arc3,rad=0'})
-        ant.set_visible(False)
-        ant.xy_orig = (0, 0)
-        self.ApplyConfig(ant, config)
+        ant = TextAnt.create(line.axes)
+        ant.line = line
         self.annotations.append(ant)
-        self.lines.append(line)
+        ant.update_config(config)
         self.set_active(ant)
 
     def GetMenu(self, axes):
         active_in_axes = False
-        if self.active and self.active.get_visible():
-            idx = self.annotations.index(self.active)
-            active_in_axes = self.lines[idx].axes in axes
-        ant_in_axes = any(l.axes in axes for l in self.lines)
+        if self.active and self.active().get_visible():
+            idx = self.FindAntIndex(self.active)
+            active_in_axes = self.annotations[idx].line.axes in axes
+        ant_in_axes = any(ant.line.axes in axes for ant in self.annotations)
         cmd = [{'id': self.ID_DELETE_DATATIP, 'label': 'Delete current datatip',
                 'enable': active_in_axes},
                {'id': self.ID_CLEAR_DATATIP, 'label': 'Delete all datatip',
@@ -317,50 +417,38 @@ class DataCursor(GraphObject):
 
     def ProcessCommand(self, cmd, axes):
         """process the context menu command"""
-        ant_in_axes = [l.axes in axes for l in self.lines]
+        ant_in_axes = [ant.line.axes in axes for ant in self.annotations]
         active_in_axes = False
         if self.active:
-            idx = self.annotations.index(self.active)
+            idx = self.FindAntIndex(self.active)
             active_in_axes = ant_in_axes[idx]
 
         if cmd == self.ID_DELETE_DATATIP:
             if not active_in_axes:
                 return False
-            idx = self.annotations.index(self.active)
-            if not ant_in_axes[idx]:
+            idx = self.FindAntIndex(self.active)
+            if idx == -1 or not ant_in_axes[idx]:
                 return False
             self.active.remove()
             del self.annotations[idx]
-            del self.lines[idx]
             self.active = None
             return True
         elif cmd == self.ID_CLEAR_DATATIP:
-            ant_in_axes = [l.axes in axes for l in self.lines]
             annotations = []
-            lines = []
             for idx, ant in enumerate(self.annotations):
                 if ant_in_axes[idx]:
-                    try:
-                        # the call may fail. For example,
-                        # 1) create a figure and plot some curve
-                        # 2) create a datatip
-                        # 3) call clf() to clear the figure, the datatip will be
-                        #    cleared, but we will not know
-                        ant.remove()
-                    except:
-                        pass
+                    ant.remove()
                 else:
                     annotations.append(self.annotations[idx])
-                    lines.append(self.lines[idx])
             self.annotations = annotations
-            self.lines = lines
             self.active = None
             return True
         elif cmd == self.ID_EXPORT_DATATIP:
             data = []
             for idx, ant in enumerate(self.annotations):
                 if ant_in_axes[idx]:
-                    data.append(ant.xy_orig)
+                    xs, ys = ant.get_orig_data()
+                    data.append((xs, ys))
             data = np.array(data)
             df = pd.DataFrame()
             df['x'] = data[:, 0]
@@ -373,10 +461,11 @@ class DataCursor(GraphObject):
             if active_in_axes:
                 active = self.active
             if active:
-                for idx, p in enumerate(settings):
-                    n = settings[idx].GetName()
+                for p in settings:
+                    n = p.GetName()
                     if n in active.config:
-                        settings[idx].SetValue(active.config[n], True)
+                        p.SetValue(active.config[n], silent=True)
+
             dlg = DatatipSettingDlg(settings, active is not None,
                                     self.window.GetParent(),
                                     size=(600, 480))
@@ -396,10 +485,10 @@ class DataCursor(GraphObject):
                     config = self.get_config(settings)
                     for idx, ant in enumerate(self.annotations):
                         if ant_in_axes[idx]:
-                            self.ApplyConfig(ant, config)
+                            ant.update_config(config)
                 elif active:
                     self.set_active(active)
-                    self.ApplyConfig(active, self.get_config(settings))
+                    active.update_config(self.get_config(settings))
                 else:
                     self.LoadConfig(settings)
 
@@ -418,32 +507,6 @@ class DataCursor(GraphObject):
             return settings
         config = {p.GetName():p.GetValue() for p in settings if not p.IsSeparator()}
         return config
-
-    def ApplyConfigAll(self, config=None):
-        for ant in self.annotations:
-            self.ApplyConfig(ant, config)
-
-    def ApplyConfig(self, ant, config=None):
-        if not config:
-            config = ant.config
-        alpha = 50
-        if self.active == ant:
-            clr_edge = config['clr_edge_selected']
-            clr_face = config['clr_face_selected']
-            alpha = config['clr_alpha_selected']
-        else:
-            clr_edge = config['clr_edge']
-            clr_face = config['clr_face']
-            alpha = config['clr_alpha']
-        ant.get_bbox_patch().set_edgecolor(clr_edge)
-        ant.get_bbox_patch().set_facecolor(clr_face)
-        ant.get_bbox_patch().set_alpha(alpha/100)
-
-        xs, ys = ant.xy_orig
-        ant.set_text(self.xy_to_annotation(xs, ys, config))
-        ant.config = config
-        x, y = self.get_annotation_position(ant)
-        wx.CallAfter(self.set_annotation_position, ant, x, y)
 
     def SaveConfig(self, settings):
         config = self.get_config(settings)
@@ -532,6 +595,7 @@ class DatatipSettingDlg(wx.Dialog):
             p = self.settings[i]
             if p.IsSeparator():
                 continue
+            p.Activated(False)
             n = p.GetName()
             settings['settings'][n] = self.propgrid.Get(n).GetValue()
         return settings

@@ -5,6 +5,10 @@ class GraphObject():
     def __init__(self, figure):
         self.figure = figure
 
+    def update(self, axes):
+        # the axes/liens has been updated
+        pass
+
     def get_xy_dis_gain(self, ax=None):
         # the gain applied to x/y when calculate the distance between to point
         # e.g., a data point to the mouse position
@@ -23,7 +27,7 @@ class GraphObject():
         return gx, gy
 
     def get_closest_line(self, axes, mx, my):
-        min_dis = float("inf")
+        min_dis = np.inf
         active_line = None
         for g in axes:
             for line in g.lines:
@@ -40,6 +44,8 @@ class GraphObject():
         inv = line.axes.transData.inverted()
         dmx, dmy = inv.transform((mx, my))
         didx, dx, dy = self.get_closest(line, dmx, dmy)
+        if didx is None:
+            return np.inf
 
         x0, y0 = line.axes.transData.transform((dx, dy))
         dis = np.sqrt((x0-mx)**2 + (y0-my)**2)
@@ -54,7 +60,7 @@ class GraphObject():
            than tolerance, or the closest data point to (mx, my)"""
         x, y = line.get_data(False)
         if mx is None and my is None:
-            return -1
+            return None, None, None
 
         gx, gy = self.get_xy_dis_gain(line.axes)
         mini = []
@@ -65,13 +71,16 @@ class GraphObject():
                 mini = np.where((y-my)**2 * gx**2 < tolerance**2)[0]
             else:
                 mini = np.where(((x-mx)**2 * gx**2 + (y-my)**2 * gy**2) < tolerance**2)[0]
-        if len(mini)  == 0:
-            if my is None:
-                mini = np.argmin((x-mx)**2)
-            elif mx is None:
-                mini = np.argmin((y-my)**2)
-            else:
-                mini = np.argmin((x-mx)**2 * gx**2 + (y-my)**2 * gy**2)
+        if len(mini) == 0:
+            try:
+                if my is None:
+                    mini = np.nanargmin((x-mx)**2)
+                elif mx is None:
+                    mini = np.nanargmin((y-my)**2)
+                else:
+                    mini = np.nanargmin((x-mx)**2 * gx**2 + (y-my)**2 * gy**2)
+            except ValueError:
+                return None, None, None
         return mini, x[mini], y[mini]
 
     def GetMenu(self, axes):
