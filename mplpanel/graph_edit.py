@@ -1,4 +1,5 @@
 import wx
+import wx.py.dispatcher as dp
 import numpy as np
 import pandas as pd
 from .graph_common import GraphObject
@@ -23,13 +24,33 @@ class LineEditor(GraphObject):
         self.marker = {}
 
         self.draggable = False
-        #self.marker.set_visible(self.draggable)
 
         self.active_line = None
         self.index = None
 
         self.mode = 'x'
         self.round_y_to = 100
+
+        dp.connect(self.OnRemoveLine, 'graph.remove_line')
+
+    def update(self, axes):
+        # axes is updated, try to update the active marker
+        if self.active_line is None or self.active_line.axes not in axes:
+            return
+
+        x, y = self.active_line.get_data()
+        self.marker[self.active_line.axes].set_data([x[self.index]], [y[self.index]])
+        self.figure.canvas.draw_idle()
+        super().update(axes)
+
+    def OnRemoveLine(self, lines):
+        if self.active_line is not None and  self.active_line in lines:
+            ax = self.active_line.axes
+            marker = self.marker[ax]
+            marker.set_visible(False)
+            marker.remove()
+            self.marker.pop(ax, None)
+            self.active_line = None
 
     def update_marker(self):
         # update marker
@@ -62,7 +83,7 @@ class LineEditor(GraphObject):
         if event.button == 1:
             # left click
             self.draggable = True
-            self.update(event)
+            self.do_mouse_pressed(event)
             self.update_marker()
         elif event.button == 3:
             self.draggable = False
@@ -127,14 +148,15 @@ class LineEditor(GraphObject):
     def update_line(self):
         # ignore the internal lines (e.g., marker)
         self.lines = {}
-        for g in self.axes:
+        axes = self.axes if self.axes is not None else []
+        for g in axes:
             self.lines[g] = [l for l in g.lines if l != self.marker.get(g, None)]
 
         if self.active_line:
             if self.active_line not in self.lines.get(self.active_line.axes, []):
                 self.active_line = None
 
-    def update(self, event):
+    def do_mouse_pressed(self, event):
         self.update_line()
         if self.active_line is None:
             active_line, _ = self.get_closest_line(self.axes, event.x, event.y)
