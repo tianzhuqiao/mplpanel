@@ -22,7 +22,7 @@ from .graph_svg import split_vert_svg, delete_svg, line_style_svg, \
                     forward_svg, forward_gray_svg, zoom_svg, pan_svg, copy_svg, \
                     save_svg, edit_svg, note_svg, timeline_svg
 from .graph_toolbar import GraphToolbar
-from .graph_subplot import add_subplot, del_subplot, get_sharex, get_sharey
+from .graph_subplot import add_subplot, del_subplot, get_sharex, get_sharey, refresh_legend
 rcParams.update({'figure.autolayout': True, 'toolbar': 'None',
                  'path.simplify_threshold': 1})
 matplotlib.interactive(True)
@@ -310,9 +310,7 @@ class Toolbar(GraphToolbar):
                         l.set_marker(ms)
                     if ds is not None:
                         l.set_drawstyle(ds)
-                if ax.get_legend():
-                    # update the line/marker on the legend
-                    ax.legend()
+                refresh_legend(ax)
 
         cmd = self.GetPopupMenuSelectionFromUser(menu)
         if cmd == wx.ID_NONE:
@@ -377,7 +375,7 @@ class Toolbar(GraphToolbar):
                     if i == self.ID_LINES.index(cmd):
                         dp.send('graph.remove_line', lines=[l])
                         l.remove()
-                        ax.legend()
+                        refresh_legend(ax)
                         break
                     i += 1
         elif cmd == self.ID_FLIP_Y_AXIS:

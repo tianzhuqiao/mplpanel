@@ -3,6 +3,7 @@ from matplotlib.backends.backend_wx import cursors
 import numpy as np
 import pandas as pd
 from .graph_common import GraphObject
+from .graph_subplot import refresh_legend
 from .utility import send_data_to_shell
 
 class Timeline(GraphObject):
@@ -94,8 +95,7 @@ class Timeline(GraphObject):
             if x is not None and idx is not None:
                 axvline.set_xdata([x[idx], x[idx]])
                 self.axvline_idx[ax] = idx
-            if ax.get_legend() is not None:
-                ax.legend()
+            refresh_legend(ax)
 
     def mouse_move(self, event):
         # TODO remove unnecessary set_cursor
@@ -224,7 +224,7 @@ class Timeline(GraphObject):
                     l.set_label(label)
             if axvline:
                 axvline.remove()
-            ax.legend()
+            refresh_legend(ax)
 
     def _export(self, axes):
         data = {}

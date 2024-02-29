@@ -294,3 +294,13 @@ def get_sharey(axes):
         if ax != sharey:
             all_sharey.add(sharey)
     return all_sharey
+
+def refresh_legend(axes):
+    for line in axes.lines:
+        label = line.get_label()
+        if label.startswith('_'):
+            continue
+        axes.legend()
+        return
+    if axes.get_legend():
+        axes.get_legend().remove()
