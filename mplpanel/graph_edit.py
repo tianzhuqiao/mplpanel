@@ -1,5 +1,4 @@
 import wx
-import wx.py.dispatcher as dp
 import numpy as np
 import pandas as pd
 from .graph_common import GraphObject
@@ -31,10 +30,8 @@ class LineEditor(GraphObject):
         self.mode = 'x'
         self.round_y_to = 100
 
-        dp.connect(self.OnRemoveLine, 'graph.remove_line')
-
-    def update(self, figure, axes):
-        if not super().update(figure, axes):
+    def OnUpdated(self, figure, axes):
+        if not super().OnUpdated(figure, axes):
             return False
 
         # axes is updated, try to update the active marker
@@ -46,7 +43,9 @@ class LineEditor(GraphObject):
         self.figure.canvas.draw_idle()
         return True
 
-    def OnRemoveLine(self, lines):
+    def OnRemovingLine(self, figure, lines):
+        if not super().OnRemovingLine(figure, lines):
+            return True
         if self.active_line is not None and  self.active_line in lines:
             ax = self.active_line.axes
             marker = self.marker[ax]
@@ -54,6 +53,7 @@ class LineEditor(GraphObject):
             marker.remove()
             self.marker.pop(ax, None)
             self.active_line = None
+        return False
 
     def update_marker(self):
         # update marker

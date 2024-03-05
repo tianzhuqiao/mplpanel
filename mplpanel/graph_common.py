@@ -5,10 +5,22 @@ import numpy as np
 class GraphObject():
     def __init__(self, figure):
         self.figure = figure
-        dp.connect(receiver=self.update, signal='graph.axes_updated')
+        dp.connect(receiver=self.OnUpdated, signal='graph.axes_updated')
+        dp.connect(self.OnRemovingLine, 'graph.removing_line')
+        dp.connect(self.OnRemovedLine, 'graph.removed_line')
 
-    def update(self, figure, axes):
-        # the axes/liens has been updated
+    def OnRemovingLine(self, figure, lines):
+        if self.figure != figure:
+            return False
+        return True
+
+    def OnRemovedLine(self, figure, axes):
+        if self.figure != figure:
+            return False
+        return True
+
+    def OnUpdated(self, figure, axes):
+        # the axes/lines has been updated
         if self.figure != figure:
             return False
         return True
@@ -16,6 +28,39 @@ class GraphObject():
     def notify_update(self, axes):
         # notify others that the data of axes has changed
         dp.send('graph.axes_updated', figure=self.figure, axes=axes)
+
+    def get_sharex(self, ax):
+        sharex = ax
+        while sharex and sharex._sharex:
+            sharex = sharex._sharex
+        return sharex
+
+    def get_sharey(self, ax):
+        sharey = ax
+        while sharey and sharey._sharey:
+            sharey = sharey._sharey
+        return sharey
+
+    def get_axes(self, axes, sharex=False, sharey=False, all_axes=False):
+        if all_axes:
+            axes_out = self.figure.axes
+        else:
+            axes_out = set(axes)
+            if sharex:
+                sharexes = set()
+                for ax in axes:
+                    sharexes.add(self.get_sharex(ax))
+                for ax in self.figure.axes:
+                    if self.get_sharex(ax) in sharexes:
+                        axes_out.add(ax)
+            if sharey:
+                shareyes = set()
+                for ax in axes:
+                    shareyes.add(self.get_sharey(ax))
+                for ax in self.figure.axes:
+                    if self.get_sharey(ax) in shareyes:
+                        axes_out.add(ax)
+        return axes_out
 
     def get_xy_dis_gain(self, ax=None):
         # the gain applied to x/y when calculate the distance between to point
@@ -90,6 +135,19 @@ class GraphObject():
             except ValueError:
                 return None, None, None
         return mini, x[mini], y[mini]
+
+    @classmethod
+    def is_aux_line(cls, l):
+        label = l.get_label()
+        return label.startswith('_bsm')
+
+    def has_visible_lines(self, ax):
+        for l in ax.lines:
+            if self.is_aux_line(l):
+                continue
+            if l.get_visible():
+                return True
+        return False
 
     def GetMenu(self, axes):
         '''return the context menu'''

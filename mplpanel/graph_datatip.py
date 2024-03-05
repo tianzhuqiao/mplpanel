@@ -186,14 +186,15 @@ class DataCursor(GraphObject):
                 ]
         self.LoadConfig()
         self.cx, self.cy = None, None
-        dp.connect(self.OnRemoveLine, 'graph.remove_line')
 
     def FindAntIndex(self, ant):
         if ant not in self.annotations:
             return -1
         return self.annotations.index(ant)
 
-    def OnRemoveLine(self, lines):
+    def OnRemovingLine(self, figure, lines):
+        if not super().OnRemovingLine(figure, lines):
+            return False
         for idx in range(len(self.annotations)-1, -1, -1):
             # start from the last annotation, as it may be deleted and change
             # the list size
@@ -202,6 +203,7 @@ class DataCursor(GraphObject):
                     self.active = None
                 self.annotations[idx].remove()
                 del self.annotations[idx]
+        return True
 
     def pick(self, event):
         # pick event will not always be triggered for twinx, see following link
@@ -312,8 +314,8 @@ class DataCursor(GraphObject):
                 return ant
         return None
 
-    def update(self, figure, axes):
-        if not super().update(figure, axes):
+    def OnUpdated(self, figure, axes):
+        if not super().OnUpdated(figure, axes):
             return False
         # axes is updated, try to update all the datatip
         for ant in self.annotations:

@@ -103,6 +103,10 @@ class Toolbar(GraphToolbar):
     ID_FLIP_X_AXIS = wx.NewIdRef()
     ID_COPY_SUBPLOT = wx.NewIdRef()
     ID_LINES = []
+    linestyle_ids = {}
+    marker_ids = {}
+    drawstyle_ids = {}
+    legend_loc_ids = {}
 
     def __init__(self, canvas, figure):
         if matplotlib.__version__ < '3.3.0':
@@ -134,9 +138,7 @@ class Toolbar(GraphToolbar):
         # clear the view history
         wx.CallAfter(self._nav_stack.clear)
 
-        self.linestyle_ids = {}
-        self.marker_ids = {}
-        self.drawstyle_ids = {}
+
 
     def GetMenu(self, axes):
         action = self.actions.get(self.mode, None)
@@ -258,6 +260,15 @@ class Toolbar(GraphToolbar):
         menu.AppendSubMenu(drawstyle_menu, "Draw style")
 
         menu.AppendSeparator()
+        legend_loc_menu = wx.Menu()
+        for k in matplotlib.legend.Legend.codes:
+            if k and isinstance(k, str) and not k.isspace():
+                if k not in self.legend_loc_ids:
+                    self.legend_loc_ids[k] = wx.NewIdRef()
+                legend_loc_menu.Append(self.legend_loc_ids[k], k)
+        menu.AppendSubMenu(legend_loc_menu, "Legend location")
+
+        menu.AppendSeparator()
         item = menu.Append(self.ID_SPLIT_VERT_SHARE_XAXIS,
                            "Split vertically with shared x-axis")
         if wx.Platform != '__WXMAC__':
@@ -284,11 +295,11 @@ class Toolbar(GraphToolbar):
         i = 0
         for ax in axes:
             for l in ax.lines:
-                label = l.get_label()
-                if not l.get_visible() or label.startswith('_bsm'):
+                if not l.get_visible() or GraphObject.is_aux_line(l):
                     continue
                 while i >= len(self.ID_LINES):
                     self.ID_LINES.append(wx.NewIdRef())
+                label = l.get_label()
                 menu_delete.Append(self.ID_LINES[i], label)
                 i += 1
         menu.AppendSubMenu(menu_delete, 'Delete')
@@ -304,6 +315,9 @@ class Toolbar(GraphToolbar):
         def _set_linestyle(ls=None, ms=None, ds=None):
             for ax in axes:
                 for l in ax.lines:
+                    if GraphObject.is_aux_line(l):
+                        # aux line has its own style, no need change
+                        continue
                     if ls is not None:
                         l.set_linestyle(ls)
                     if ms is not None:
@@ -330,6 +344,11 @@ class Toolbar(GraphToolbar):
         elif cmd in self.drawstyle_ids.values():
             style = list(self.drawstyle_ids.keys())[list(self.drawstyle_ids.values()).index(cmd)]
             _set_linestyle(ds=style)
+        elif cmd in self.legend_loc_ids.values():
+            loc = list(self.legend_loc_ids.keys())[list(self.legend_loc_ids.values()).index(cmd)]
+            for ax in axes:
+                refresh_legend(ax, loc=loc)
+
         elif cmd in [self.ID_SPLIT_VERT, self.ID_SPLIT_VERT_SHARE_XAXIS,
                      self.ID_SPLIT_VERT_SHARE_YAXIS, self.ID_SPLIT_VERT_SHARE_XYAXIS,
                      self.ID_SPLIT_HORZ, self.ID_SPLIT_HORZ_SHARE_XAXIS,
@@ -347,18 +366,21 @@ class Toolbar(GraphToolbar):
         elif cmd == self.ID_DELETE_SUBPLOT:
             for ax in axes:
                 # notify others that we are planning to delete the subplot.
-                dp.send('graph.remove_line', lines = ax.lines)
+                dp.send('graph.removing_line', figure=self.figure, lines = ax.lines)
+                ax.cla()
                 del_subplot(ax)
+                dp.send('graph.removed_line', figure=self.figure, axes=ax)
             self._nav_stack.clear()
         elif cmd == self.ID_DELETE_LINES:
             sharex = get_sharex(self.figure.axes)
             sharey = get_sharey(self.figure.axes)
             for ax in axes:
                 grid_on = any(line.get_visible() for line in ax.get_xgridlines() + ax.get_ygridlines())
-                dp.send('graph.remove_line', lines = ax.lines)
+                dp.send('graph.removing_line', figure=self.figure, lines = ax.lines)
                 xlim = ax.get_xlim()
                 ylim = ax.get_ylim()
                 ax.cla()
+                dp.send('graph.removed_line', figure=self.figure, axes=ax)
                 if grid_on:
                     ax.grid(True)
                 # if ax shares itself to other axes, but none axes shares it
@@ -372,10 +394,13 @@ class Toolbar(GraphToolbar):
             i = 0
             for ax in axes:
                 for l in ax.lines:
+                    if not l.get_visible() or GraphObject.is_aux_line(l):
+                        continue
                     if i == self.ID_LINES.index(cmd):
-                        dp.send('graph.remove_line', lines=[l])
+                        dp.send('graph.removing_line', figure=self.figure, lines=[l])
                         l.remove()
                         refresh_legend(ax)
+                        dp.send('graph.removed_line', figure=self.figure, axes=ax)
                         break
                     i += 1
         elif cmd == self.ID_FLIP_Y_AXIS:

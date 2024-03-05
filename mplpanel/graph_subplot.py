@@ -295,12 +295,17 @@ def get_sharey(axes):
             all_sharey.add(sharey)
     return all_sharey
 
-def refresh_legend(axes):
+def refresh_legend(axes, **kwargs):
     for line in axes.lines:
         label = line.get_label()
         if label.startswith('_'):
             continue
-        axes.legend()
+        if 'loc' not in kwargs:
+            loc = 'best'
+            if axes.get_legend():
+                loc = axes.get_legend()._loc
+            kwargs['loc'] = loc
+        axes.legend(**kwargs)
         return
     if axes.get_legend():
         axes.get_legend().remove()
