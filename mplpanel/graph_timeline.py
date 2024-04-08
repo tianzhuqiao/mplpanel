@@ -302,6 +302,11 @@ class AxLine:
         x, y, idx = None, None, None
         for l in self.ax().lines:
             label = l.get_label()
+            if label.startswith('_bsm'):
+                # ignore _bsm line
+                continue
+            x = l.get_xdata()
+            idx = np.argmin(np.abs(x - xdata))
             if label.startswith('_'):
                 # legend is not visible
                 continue
@@ -310,16 +315,13 @@ class AxLine:
             if len(label) > 1:
                 label = label[:-1]
             label = ' '.join(label)
-            x = l.get_xdata()
             y = l.get_ydata()
             idx = np.argmin(np.abs(x - xdata))
             label = f'{label} {y[idx]:g}'
             l.set_label(label)
-
         if x is not None and idx is not None:
             self.axvline().set_xdata([x[idx], x[idx]])
             self.axvline_idx = idx
-            #self.update_x_axvline2()
 
     def hit_test(self, x, y):
         # check if (x, y) is close to the axvline in ax
@@ -586,12 +588,14 @@ class Timeline(GraphObject):
             idx = axline.axvline_idx
             for l in ax.lines:
                 label = l.get_label()
-                if label.startswith('_'):
+                if label.startswith('_bsm'):
                     continue
-                label = label.split(' ')
-                if len(label) > 1:
-                    label = label[:-1]
-                label = ' '.join(label)
+                if not label.startswith('_'):
+                    # visible legend, remove value first
+                    label = label.split(' ')
+                    if len(label) > 1:
+                        label = label[:-1]
+                    label = ' '.join(label)
                 x = l.get_xdata()
                 y = l.get_ydata()
                 sharex = self.get_sharex(ax)
