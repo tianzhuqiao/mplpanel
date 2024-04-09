@@ -451,6 +451,7 @@ class Toolbar(GraphToolbar):
             return
         if action.mouse_move(event):
             self.canvas.draw()
+
     def OnScroll(self, event):
         self.do_zoom(event)
 
@@ -472,7 +473,7 @@ class Toolbar(GraphToolbar):
             yzoom_key = False
         elif wx.GetKeyState(wx.WXK_CONTROL_Y):
             xzoom_key = False
-        xzoom = yzoom = xzoom_key, yzoom_key
+        xzoom, yzoom = xzoom_key, yzoom_key
         xdata, ydata = event.xdata, event.ydata
         axes = [[a, xzoom, yzoom, xdata, ydata] for a in self.figure.get_axes()
                 if a.in_axes(event)]
@@ -481,14 +482,16 @@ class Toolbar(GraphToolbar):
             for ax in self.figure.get_axes():
                 x,y = event.x, event.y
                 xAxes, yAxes = ax.transAxes.inverted().transform([x, y])
-                if -0.1 < xAxes < 0:
-                    xzoom = False
-                if -0.1 < yAxes < 0:
-                    yzoom = False
+                xzoom, yzoom = False, False
+                if -0.1 < xAxes < 0 and 0 < yAxes < 1:
+                    # the mouse is near the right edge of the axes
+                    yzoom = yzoom_key
+                if -0.1 < yAxes < 0 and 0 < xAxes < 1:
+                    # the mouse is near the bottom edge of the axes
+                    xzoom = xzoom_key
                 xdata, ydata = ax.transData.inverted().transform([x, y])
                 if not yzoom or (not xzoom and -0.05 < yAxes < 1):
                     axes.append([ax, xzoom, yzoom, xdata, ydata])
-                xzoom = yzoom = xzoom_key, yzoom_key
             if not axes:
                 return
 
