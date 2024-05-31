@@ -300,13 +300,17 @@ class AxLine:
         if xdata is None:
             xdata = self.axvline().get_xdata()[0]
         x, y, idx = None, None, None
+        x_min = np.inf
         for l in self.ax().lines:
             label = l.get_label()
             if label.startswith('_bsm'):
                 # ignore _bsm line
                 continue
-            x = l.get_xdata()
-            idx = np.argmin(np.abs(x - xdata))
+            lx = l.get_xdata()
+            idx = np.argmin(np.abs(lx - xdata))
+            if np.abs(lx[idx] - xdata) < x_min:
+                x_min = np.abs(lx[idx] - xdata)
+                x = lx
             if label.startswith('_'):
                 # legend is not visible
                 continue
