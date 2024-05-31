@@ -158,18 +158,20 @@ class XAuxLine(AuxLine):
             return
         xdata = data
         x, idx = None, None
+        x_min = np.inf
         if xdata is None:
             xdata = self.active.get_xdata()[0]
-
         for l in self.active.axes.lines:
             label = l.get_label()
             if label.startswith('_bsm'):
                 # legend is not visible
                 continue
-            x = l.get_xdata()
-            idx = np.argmin(np.abs(x - xdata))
-            break
-
+            lx = l.get_xdata()
+            lidx = np.argmin(np.abs(lx - xdata))
+            if np.abs(lx[lidx] - xdata) < x_min:
+                x_min = np.abs(lx[lidx] - xdata)
+                x = lx
+                idx = lidx
         if x is not None and idx is not None:
             self.active.set_xdata([x[idx], x[idx]])
             if self.active == self.line():
@@ -307,10 +309,11 @@ class AxLine:
                 # ignore _bsm line
                 continue
             lx = l.get_xdata()
-            idx = np.argmin(np.abs(lx - xdata))
-            if np.abs(lx[idx] - xdata) < x_min:
-                x_min = np.abs(lx[idx] - xdata)
+            lidx = np.argmin(np.abs(lx - xdata))
+            if np.abs(lx[lidx] - xdata) < x_min:
+                x_min = np.abs(lx[lidx] - xdata)
                 x = lx
+                idx = lidx
             if label.startswith('_'):
                 # legend is not visible
                 continue
