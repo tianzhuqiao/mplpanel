@@ -59,13 +59,13 @@ class GDock(GraphObject):
                 w, h = frameRect.width, frameRect.height
                 rect = wx.Rect()
                 if direction == 'left':
-                    rect = wx.Rect(frameRect.x, frameRect.y, w/(c+1), h)
+                    rect = wx.Rect(frameRect.x, frameRect.y, w//(c+1), h)
                 elif direction == 'right':
-                    rect = wx.Rect(frameRect.x+w-w/(c+1), frameRect.y, w/(c+1), h)
+                    rect = wx.Rect(frameRect.x+w-w//(c+1), frameRect.y, w//(c+1), h)
                 if direction == 'top':
-                    rect = wx.Rect(frameRect.x, frameRect.y, w, h/(r+1))
+                    rect = wx.Rect(frameRect.x, frameRect.y, w, h//(r+1))
                 elif direction == 'bottom':
-                    rect = wx.Rect(frameRect.x, frameRect.y+h-h/(r+1), w, h/(r+1))
+                    rect = wx.Rect(frameRect.x, frameRect.y+h-h//(r+1), w, h//(r+1))
             else:
                 # try to dock around event.inaxes
                 frameRect = self.GetAxesRect(event.inaxes)
@@ -85,16 +85,16 @@ class GDock(GraphObject):
                 w, h = frameRect.width, frameRect.height
                 if direction == 'left':
                     i = min(c-1, i)
-                    rect = wx.Rect(frameRect.x+i*w/(c+1), frameRect.y, w/(c+1),h)
+                    rect = wx.Rect(frameRect.x+i*w//(c+1), frameRect.y, w//(c+1),h)
                 elif direction == 'right':
                     i = min(c-1, i)
-                    rect = wx.Rect(frameRect.x+(i+1)*w/(c+1), frameRect.y, w/(c+1),h)
+                    rect = wx.Rect(frameRect.x+(i+1)*w/(c+1), frameRect.y, w//(c+1),h)
                 elif direction == 'top':
                     i = min(r-1, i)
-                    rect = wx.Rect(frameRect.x, frameRect.y+i*h/(r+1), w, h/(r+1))
+                    rect = wx.Rect(frameRect.x, frameRect.y+i*h//(r+1), w, h//(r+1))
                 if direction == 'bottom':
                     i = min(r-1, i)
-                    rect = wx.Rect(frameRect.x, frameRect.y+(i+1)*h/(r+1), w,h/(r+1))
+                    rect = wx.Rect(frameRect.x, frameRect.y+(i+1)*h//(r+1), w,h//(r+1))
             self.ShowHint(rect)
         else:
             self.HideHint()
@@ -129,9 +129,9 @@ class GDock(GraphObject):
         bbox = ax.get_tightbbox()
         w, h = self.canvas.GetSize()
         rc = wx.Rect()
-        topleft = (bbox.p0[0]//ratio, h-bbox.p1[1]//ratio)
+        topleft = (int(bbox.p0[0]//ratio), int(h-bbox.p1[1]//ratio))
         rc.SetTopLeft(self.canvas.ClientToScreen(topleft))
-        rc.SetSize((bbox.width//ratio, bbox.height//ratio))
+        rc.SetSize((int(bbox.width//ratio), int(bbox.height//ratio)))
         return rc
 
     def GetGridRect(self, g):
