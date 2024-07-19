@@ -1,5 +1,7 @@
 import weakref
+import datetime
 import wx
+import matplotlib
 from matplotlib.backends.backend_wx import cursors
 import numpy as np
 import pandas as pd
@@ -38,8 +40,8 @@ class AuxLine:
         if line is None or not line.get_visible():
             return False
         trans = line.get_transform()
-        lx, ly1 = trans.transform((line.get_xdata()[1], line.get_ydata()[0]))
-        _, ly2 = trans.transform((line.get_xdata()[0], line.get_ydata()[1]))
+        lx, ly1 = trans.transform((line.get_xdata(False)[1], line.get_ydata()[0]))
+        _, ly2 = trans.transform((line.get_xdata(False)[0], line.get_ydata()[1]))
         if self.is_close_to(lx, x, 10) and ly1 <= y <= ly2:
             self.active = line
             return True
@@ -52,8 +54,8 @@ class AuxLine:
         if line is None or not line.get_visible():
             return False
         trans = line.get_transform()
-        lx1, ly = trans.transform((line.get_xdata()[0], line.get_ydata()[0]))
-        lx2, _ = trans.transform((line.get_xdata()[1], line.get_ydata()[1]))
+        lx1, ly = trans.transform((line.get_xdata(False)[0], line.get_ydata()[0]))
+        lx2, _ = trans.transform((line.get_xdata(False)[1], line.get_ydata()[1]))
         if self.is_close_to(ly, y, 10) and lx1 <= x <= lx2:
             self.active = line
             return True
@@ -160,17 +162,17 @@ class XAuxLine(AuxLine):
         x, idx = None, None
         x_min = np.inf
         if xdata is None:
-            xdata = self.active.get_xdata()[0]
+            xdata = self.active.get_xdata(False)[0]
         for l in self.active.axes.lines:
             label = l.get_label()
             if label.startswith('_bsm'):
                 # legend is not visible
                 continue
-            lx = l.get_xdata()
+            lx = l.get_xdata(False)
             lidx = np.argmin(np.abs(lx - xdata))
             if np.abs(lx[lidx] - xdata) < x_min:
                 x_min = np.abs(lx[lidx] - xdata)
-                x = lx
+                x = l.get_xdata()
                 idx = lidx
         if x is not None and idx is not None:
             self.active.set_xdata([x[idx], x[idx]])
@@ -180,10 +182,19 @@ class XAuxLine(AuxLine):
                 self.line2_idx = idx
             start = self.line().get_xdata()[0]
             end = self.line2().get_xdata()[0]
+            if isinstance(start, datetime.date) and not isinstance(end, datetime.date):
+                end = matplotlib.dates.num2date(end)
+
+            if not isinstance(start, datetime.date) and isinstance(end, datetime.date):
+                start = matplotlib.dates.num2date(start)
+
             start, end = min(start, end), max(start, end)
             self.line3().set_xdata([start, end])
-            self.text().set_text(f'{abs(start-end):g}')
-            self.text().set_x((start+end)/2)
+            if isinstance(start, datetime.date):
+                self.text().set_text(f'{abs((start-end).total_seconds()):g}')
+            else:
+                self.text().set_text(f'{abs(start-end):g}')
+            self.text().set_x(start+ (end-start)/2)
 
 class YAuxLine(AuxLine):
     # labels for x-axis aux line
@@ -300,7 +311,7 @@ class AxLine:
     def update_legend(self, xdata = None):
         # update x-axis axvline and legend
         if xdata is None:
-            xdata = self.axvline().get_xdata()[0]
+            xdata = self.axvline().get_xdata(False)[0]
         x, y, idx = None, None, None
         x_min = np.inf
         for l in self.ax().lines:
@@ -308,11 +319,11 @@ class AxLine:
             if label.startswith('_bsm'):
                 # ignore _bsm line
                 continue
-            lx = l.get_xdata()
+            lx = l.get_xdata(False)
             lidx = np.argmin(np.abs(lx - xdata))
             if np.abs(lx[lidx] - xdata) < x_min:
                 x_min = np.abs(lx[lidx] - xdata)
-                x = lx
+                x = l.get_xdata()
                 idx = lidx
             if label.startswith('_'):
                 # legend is not visible
@@ -323,8 +334,8 @@ class AxLine:
                 label = label[:-1]
             label = ' '.join(label)
             y = l.get_ydata()
-            idx = np.argmin(np.abs(x - xdata))
-            label = f'{label} {y[idx]:g}'
+            #idx = np.argmin(np.abs(x - xdata))
+            label = f'{label} {y[lidx]:g}'
             l.set_label(label)
         if x is not None and idx is not None:
             self.axvline().set_xdata([x[idx], x[idx]])
@@ -339,8 +350,8 @@ class AxLine:
             if line is None or not line.get_visible():
                 continue
             trans = line.get_transform()
-            lx, ly1 = trans.transform((line.get_xdata()[0], line.get_ydata()[0]))
-            _, ly2 = trans.transform((line.get_xdata()[1], line.get_ydata()[1]))
+            lx, ly1 = trans.transform((line.get_xdata(False)[0], line.get_ydata()[0]))
+            _, ly2 = trans.transform((line.get_xdata(False)[1], line.get_ydata()[1]))
             if wx.Platform != '__WXMSW__':
                 ratio = self.ax().figure.canvas.device_pixel_ratio
             else:
@@ -538,7 +549,7 @@ class Timeline(GraphObject):
         for l in ax.lines:
             if self.is_aux_line(l):
                 continue
-            x = l.get_xdata()
+            x = l.get_xdata(False)
             idx = np.argmin(np.abs(x - xdata))
             idx = min(max(idx + step, 0), len(x)-1)
             return x[idx]
@@ -550,7 +561,8 @@ class Timeline(GraphObject):
             return
         if event.key in ['shift+left', 'left', 'shift+right', 'right']:
             if self.active_axvline:
-                xdata = self.active_axvline.get_xdata()
+                # get the current x value
+                xdata = self.active_axvline.get_xdata(False)
                 step = 10 if 'shift' in event.key else 1
                 if 'left' in event.key:
                     step = -step
