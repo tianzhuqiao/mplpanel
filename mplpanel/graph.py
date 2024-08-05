@@ -364,12 +364,34 @@ class Toolbar(GraphToolbar):
                 ax.grid(True)
             self._nav_stack.clear()
         elif cmd == self.ID_DELETE_SUBPLOT:
+            axes_x_to_update = {}
+            axes_y_to_update = {}
+            for ax in self.figure.axes:
+                sharex = list(get_sharex([ax]))
+                sharey = list(get_sharey([ax]))
+                if sharex and sharex[0] in axes:
+                    print("sharex")
+                    axes_x_to_update[ax] = sharex[0].get_xlim()
+                if sharey and sharey[0] in axes:
+                    print("sharey")
+                    axes_y_to_update[ax] = sharey[0].get_ylim()
+
             for ax in axes:
                 # notify others that we are planning to delete the subplot.
                 dp.send('graph.removing_line', figure=self.figure, lines = ax.lines)
                 ax.cla()
                 del_subplot(ax)
                 dp.send('graph.removed_line', figure=self.figure, axes=ax)
+            # if the deleted axes share the axes with others, update the other
+            # axes scale, otherwise they may not show correctly (e.g., if sharex,
+            # the their x-axis may become [0, 1].
+            for ax in self.figure.axes:
+                if ax in axes_x_to_update:
+                    print('update x')
+                    ax.set_xlim(axes_x_to_update[ax])
+                if ax in axes_y_to_update:
+                    print('update y')
+                    ax.set_ylim(axes_y_to_update[ax])
             self._nav_stack.clear()
         elif cmd == self.ID_DELETE_LINES:
             sharex = get_sharex(self.figure.axes)
