@@ -283,7 +283,7 @@ class Toolbar(GraphToolbar):
         split_horz_menu.Append(self.ID_SPLIT_HORZ_SHARE_XAXIS, "Share x-axis")
         split_horz_menu.Append(self.ID_SPLIT_HORZ_SHARE_YAXIS, "Share y-axis")
         split_horz_menu.Append(self.ID_SPLIT_HORZ_SHARE_XYAXIS, "Share x/y-axis")
-        split_horz_menu.Append(self.ID_SPLIT_HORZ, "Share horizontally")
+        split_horz_menu.Append(self.ID_SPLIT_HORZ, "Share no axis")
         menu.AppendSubMenu(split_horz_menu, "Split horizontally")
         menu.AppendSeparator()
 
@@ -370,10 +370,8 @@ class Toolbar(GraphToolbar):
                 sharex = list(get_sharex([ax]))
                 sharey = list(get_sharey([ax]))
                 if sharex and sharex[0] in axes:
-                    print("sharex")
                     axes_x_to_update[ax] = sharex[0].get_xlim()
                 if sharey and sharey[0] in axes:
-                    print("sharey")
                     axes_y_to_update[ax] = sharey[0].get_ylim()
 
             for ax in axes:
@@ -387,10 +385,8 @@ class Toolbar(GraphToolbar):
             # the their x-axis may become [0, 1].
             for ax in self.figure.axes:
                 if ax in axes_x_to_update:
-                    print('update x')
                     ax.set_xlim(axes_x_to_update[ax])
                 if ax in axes_y_to_update:
-                    print('update y')
                     ax.set_ylim(axes_y_to_update[ax])
             self._nav_stack.clear()
         elif cmd == self.ID_DELETE_LINES:
