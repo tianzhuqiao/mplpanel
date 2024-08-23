@@ -91,7 +91,7 @@ class TextAnt:
 
     def xy_to_annotation(self, x, y, fmt=None):
         if x is None or y is None:
-            return
+            return ""
         if fmt is None:
             fmt = self.config
         x_str = ""
@@ -559,16 +559,15 @@ class DatatipSettingDlg(wx.Dialog):
         sizer.Add(self.cbSaveAsDefault, 0, wx.EXPAND|wx.ALL, 5)
 
         # ok/cancel button
-        btnsizer = wx.StdDialogButtonSizer()
+        btnsizer = wx.BoxSizer(wx.HORIZONTAL)
         btnsizer.AddStretchSpacer(1)
+
+        btn = wx.Button(self, wx.ID_CANCEL)
+        btnsizer.Add(btn, 0, wx.EXPAND | wx.ALL, 5)
 
         btn = wx.Button(self, wx.ID_OK)
         btn.SetDefault()
-        btnsizer.AddButton(btn)
-
-        btn = wx.Button(self, wx.ID_CANCEL)
-        btnsizer.AddButton(btn)
-        btnsizer.Realize()
+        btnsizer.Add(btn, 0, wx.EXPAND | wx.ALL, 5)
 
         sizer.Add(btnsizer, 0, wx.ALL|wx.EXPAND, 5)
 
