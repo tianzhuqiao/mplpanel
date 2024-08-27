@@ -158,7 +158,38 @@ class Toolbar(GraphToolbar):
             return
         action.ProcessCommand(cmd, axes)
 
+    def _on_pick_legend(self, event):
+        # On the pick event, find the original line corresponding to the legend
+        # proxy line, and toggle its visibility.
+        legend_line = event.artist
+        if not legend_line:
+            return False
+        for ax in [event.mouseevent.inaxes]:
+            legend = ax.get_legend()
+            if not legend:
+                continue
+            # Do nothing if the source of the event is not a legend line.
+            if legend_line not in legend.get_lines():
+                continue
+
+            idx = legend.get_lines().index(legend_line)
+            lines = [l for l in  ax.lines if not l.get_label().startswith('_')]
+            if idx >= len(lines) or lines[idx].get_label() != legend_line.get_label():
+                continue
+            line = lines[idx]
+            visible = not line.get_visible()
+            line.set_visible(visible)
+            # Change the alpha on the line in the legend, so we can see what lines
+            # have been toggled.
+            legend_line.set_alpha(1.0 if visible else 0.2)
+            legend_line.figure.canvas.draw()
+            return True
+        return False
+
     def OnPick(self, event):
+        if self._on_pick_legend(event):
+            # click on legend
+            return
         action = self.actions.get(self.mode, None)
         if action is None or not hasattr(action, 'pick'):
             return

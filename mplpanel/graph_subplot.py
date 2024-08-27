@@ -296,16 +296,29 @@ def get_sharey(axes):
     return all_sharey
 
 def refresh_legend(axes, **kwargs):
-    for line in axes.lines:
+    lines = [l for l in axes.lines if not l.get_label().startswith('_')]
+
+    if len(lines) == 0 and axes.get_legend():
+        axes.get_legend().remove()
+        return None
+
+    for line in lines:
         label = line.get_label()
         if label.startswith('_'):
             continue
+
         if 'loc' not in kwargs:
             loc = 'best'
             if axes.get_legend():
                 loc = axes.get_legend()._loc
             kwargs['loc'] = loc
-        axes.legend(**kwargs)
-        return
-    if axes.get_legend():
-        axes.get_legend().remove()
+
+    l = axes.legend(**kwargs)
+
+    if len(lines) == len(l.get_lines()):
+        for legend_line, ax_line in zip(l.get_lines(), lines):
+            # set the legend line to be pickable, and update its status
+            legend_line.set_picker(5)
+            legend_line.set_visible(True)
+            legend_line.set_alpha(1.0 if ax_line.get_visible() else 0.2)
+    return l
