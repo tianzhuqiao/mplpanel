@@ -88,7 +88,7 @@ class GDock(GraphObject):
                     rect = wx.Rect(frameRect.x+i*w//(c+1), frameRect.y, w//(c+1),h)
                 elif direction == 'right':
                     i = min(c-1, i)
-                    rect = wx.Rect(frameRect.x+(i+1)*w/(c+1), frameRect.y, w//(c+1),h)
+                    rect = wx.Rect(frameRect.x+(i+1)*w//(c+1), frameRect.y, w//(c+1),h)
                 elif direction == 'top':
                     i = min(r-1, i)
                     rect = wx.Rect(frameRect.x, frameRect.y+i*h//(r+1), w, h//(r+1))
