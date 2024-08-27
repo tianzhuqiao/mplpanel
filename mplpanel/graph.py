@@ -124,6 +124,8 @@ class Toolbar(GraphToolbar):
         self.pan_action = Pan(self.figure)
         self.dock = GDock(self.figure)
 
+        self.dragging_legend = False
+
         self.actions = {'datatip': self.datacursor,
                         'edit': self.lineeditor,
                         'pan/zoom': self.pan_action,
@@ -137,8 +139,6 @@ class Toolbar(GraphToolbar):
         self.canvas.mpl_connect('key_press_event', self.OnKeyPressed)
         # clear the view history
         wx.CallAfter(self._nav_stack.clear)
-
-
 
     def GetMenu(self, axes):
         action = self.actions.get(self.mode, None)
@@ -165,6 +165,8 @@ class Toolbar(GraphToolbar):
         if not legend_line:
             return False
         for ax in [event.mouseevent.inaxes]:
+            if ax is None:
+                continue
             legend = ax.get_legend()
             if not legend:
                 continue
@@ -210,7 +212,12 @@ class Toolbar(GraphToolbar):
     def OnPressed(self, event):
         action = self.actions.get(self.mode, None)
         if action is None or not hasattr(action, 'mouse_pressed'):
-            if not self.mode:
+            self.dragging_legend = False
+            if event.inaxes is not None:
+                l = event.inaxes.get_legend()
+                if l is not None and l._draggable is not None:
+                 self.dragging_legend = l._draggable.got_artist
+            if not self.mode and not self.dragging_legend:
                 self.dock.mouse_pressed(event)
             return
         # some lines may be added
@@ -219,7 +226,6 @@ class Toolbar(GraphToolbar):
             self.canvas.draw()
 
     def OnReleased(self, event):
-
         action = self.actions.get(self.mode, None)
         if action and hasattr(action, 'mouse_released'):
             action.mouse_released(event)
@@ -495,7 +501,8 @@ class Toolbar(GraphToolbar):
     def OnMove(self, event):
         action = self.actions.get(self.mode, None)
         if action is None or not hasattr(action, 'mouse_move'):
-            if not self.mode:
+
+            if not self.mode and not self.dragging_legend:
                 self.dock.mouse_move(event)
             return
         if action.mouse_move(event):

@@ -314,7 +314,8 @@ def refresh_legend(axes, **kwargs):
             kwargs['loc'] = loc
 
     l = axes.legend(**kwargs)
-
+    l.set_in_layout(False)
+    l.set_draggable(True)
     if len(lines) == len(l.get_lines()):
         for legend_line, ax_line in zip(l.get_lines(), lines):
             # set the legend line to be pickable, and update its status
