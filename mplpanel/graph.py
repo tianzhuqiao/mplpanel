@@ -216,7 +216,7 @@ class Toolbar(GraphToolbar):
             if event.inaxes is not None:
                 l = event.inaxes.get_legend()
                 if l is not None and l._draggable is not None:
-                 self.dragging_legend = l._draggable.got_artist
+                    self.dragging_legend = l._draggable.got_artist
             if not self.mode and not self.dragging_legend:
                 self.dock.mouse_pressed(event)
             return
@@ -552,6 +552,9 @@ class Toolbar(GraphToolbar):
                 return
 
         base_scale = 2.0
+        if wx.GetKeyState(wx.WXK_SHIFT):
+            # smaller scale
+            base_scale = 1.1
         if event.button == 'up':
             # deal with zoom in
             scale_factor = 1.0 / base_scale
