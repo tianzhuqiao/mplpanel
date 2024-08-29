@@ -142,6 +142,7 @@ class TextAnt:
                           arrowprops={'arrowstyle': '->',
                                       'connectionstyle': 'arc3,rad=0'})
         ant.set_visible(False)
+        ant.set_in_layout(False)
         annotation = cls(annotation=ant)
         return annotation
 
