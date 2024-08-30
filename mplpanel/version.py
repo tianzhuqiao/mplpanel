@@ -2,7 +2,7 @@ PROJECT_NAME     = 'mplpanel'
 
 VER_MAJOR        = 0
 VER_MINOR        = 1
-VER_RELEASE      = 6
+VER_RELEASE      = 7
 
 VER_FLAGS        = ""
 
