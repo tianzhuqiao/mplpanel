@@ -658,6 +658,8 @@ class Toolbar(GraphToolbar):
         for ax in axes:
             ax.autoscale(axis=axis)
         self.figure.canvas.draw_idle()
+        # clear the view history
+        wx.CallAfter(self._nav_stack.clear)
 
     def copy_figure(self, evt):
         # self.canvas.Copy_to_Clipboard(event=evt)
