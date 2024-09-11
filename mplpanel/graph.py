@@ -656,6 +656,7 @@ class Toolbar(GraphToolbar):
 
     def do_auto_scale(self, axes, axis='both'):
         for ax in axes:
+            ax.relim()
             ax.autoscale(axis=axis)
         self.figure.canvas.draw_idle()
         # clear the view history
