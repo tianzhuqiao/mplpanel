@@ -302,16 +302,24 @@ def refresh_legend(axes, **kwargs):
         axes.get_legend().remove()
         return None
 
+    has_legend = False
     for line in lines:
         label = line.get_label()
         if label.startswith('_'):
             continue
 
+        has_legend = True
         if 'loc' not in kwargs:
             loc = 'best'
             if axes.get_legend():
                 loc = axes.get_legend()._loc
             kwargs['loc'] = loc
+            break
+
+    if not has_legend:
+        if axes.get_legend():
+            axes.get_legend().remove()
+        return None
 
     l = axes.legend(**kwargs)
     l.set_in_layout(False)
