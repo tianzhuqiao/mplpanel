@@ -310,7 +310,7 @@ def refresh_legend(axes, **kwargs):
 
         has_legend = True
         if 'loc' not in kwargs:
-            loc = 'best'
+            loc = 'upper right'
             if axes.get_legend():
                 loc = axes.get_legend()._loc
             kwargs['loc'] = loc

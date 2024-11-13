@@ -298,11 +298,13 @@ class Toolbar(GraphToolbar):
 
         menu.AppendSeparator()
         legend_loc_menu = wx.Menu()
-        for k in matplotlib.legend.Legend.codes:
+        for k, v in matplotlib.legend.Legend.codes.items():
             if k and isinstance(k, str) and not k.isspace():
                 if k not in self.legend_loc_ids:
                     self.legend_loc_ids[k] = wx.NewIdRef()
-                legend_loc_menu.Append(self.legend_loc_ids[k], k)
+                item = legend_loc_menu.AppendCheckItem(self.legend_loc_ids[k], k)
+                if len(axes) == 1 and axes[0].get_legend() and axes[0].get_legend()._loc == v:
+                    item.Check(True)
         menu.AppendSubMenu(legend_loc_menu, "Legend location")
 
         menu.AppendSeparator()
