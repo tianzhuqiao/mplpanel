@@ -16,13 +16,14 @@ from .graph_edit import LineEditor
 from .graph_datatip import DataCursor
 from .graph_timeline import Timeline
 from .graph_dock import GDock
-from .utility import build_menu_from_list, svg_to_bitmap
+from .utility import build_menu_from_list, svg_to_bitmap, send_data_to_shell
 from .graph_svg import split_vert_svg, delete_svg, line_style_svg, \
                     new_page_svg, home_svg, backward_svg, backward_gray_svg, \
                     forward_svg, forward_gray_svg, zoom_svg, pan_svg, copy_svg, \
                     save_svg, edit_svg, note_svg, timeline_svg
 from .graph_toolbar import GraphToolbar
 from .graph_subplot import add_subplot, del_subplot, get_sharex, get_sharey, refresh_legend
+from .graph_stats import get_stats, get_data
 rcParams.update({'figure.autolayout': True, 'toolbar': 'None',
                  'path.simplify_threshold': 1})
 matplotlib.interactive(True)
@@ -102,6 +103,10 @@ class Toolbar(GraphToolbar):
     ID_FLIP_Y_AXIS = wx.NewIdRef()
     ID_FLIP_X_AXIS = wx.NewIdRef()
     ID_COPY_SUBPLOT = wx.NewIdRef()
+    ID_STATS_ALL = wx.NewIdRef()
+    ID_STATS_VISIBLE = wx.NewIdRef()
+    ID_EXPORT_ALL = wx.NewIdRef()
+    ID_EXPORT_VISIBLE = wx.NewIdRef()
     ID_LINES = []
     linestyle_ids = {}
     marker_ids = {}
@@ -350,6 +355,12 @@ class Toolbar(GraphToolbar):
 
         menu.AppendSeparator()
         menu.Append(self.ID_COPY_SUBPLOT, "Copy to clipboard")
+        menu.AppendSeparator()
+        menu.Append(self.ID_STATS_ALL, "Show data statistics")
+        menu.Append(self.ID_STATS_VISIBLE, "Show visible data statistics")
+        menu.AppendSeparator()
+        menu.Append(self.ID_EXPORT_ALL, "Export data to shell")
+        menu.Append(self.ID_EXPORT_VISIBLE, "Export visible data to shell")
 
         def _set_linestyle(ls=None, ms=None, ds=None):
             for ax in axes:
@@ -496,7 +507,12 @@ class Toolbar(GraphToolbar):
                         wx.TheClipboard.SetData(bmp_obj)
                         wx.TheClipboard.Flush()
                         wx.TheClipboard.Close()
-
+        elif cmd in [self.ID_STATS_ALL, self.ID_STATS_VISIBLE]:
+            df = get_stats(axes, cmd == self.ID_STATS_VISIBLE)
+            send_data_to_shell('stats', df)
+        elif cmd in [self.ID_EXPORT_ALL, self.ID_EXPORT_VISIBLE]:
+            df = get_data(axes, cmd == self.ID_EXPORT_VISIBLE)
+            send_data_to_shell('data', df)
         else:
             self.ProcessCommand(cmd, axes)
 
