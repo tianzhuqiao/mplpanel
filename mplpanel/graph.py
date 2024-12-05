@@ -816,7 +816,7 @@ class Toolbar(GraphToolbar):
 
     def set_message(self, s):
         """show the status message"""
-        dp.send(signal='frame.show_status_text', text=s, index=1, width=160)
+        dp.send(signal='frame.show_status_text', text=s, index=1, width=0)
 
 class MPLPanel(wx.Panel):
     frame = None
