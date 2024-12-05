@@ -1,6 +1,7 @@
 import numpy as np
 import pandas as pd
 from .utility import _dict
+from .graph_common import is_aux_line
 
 def get_stats(axes, visible_range=True):
 
@@ -9,7 +10,7 @@ def get_stats(axes, visible_range=True):
         xmin, xmax = ax.xaxis.get_view_interval()
         for line in ax.lines:
             label = line.get_label()
-            if label.startswith('_bsm'):
+            if is_aux_line(line):
                 continue
 
             y_data = line.get_ydata(True)
@@ -36,7 +37,7 @@ def get_data(axes, visible_range=True):
         xmin, xmax = ax.xaxis.get_view_interval()
         for line in ax.lines:
             label = line.get_label()
-            if label.startswith('_bsm'):
+            if is_aux_line(line):
                 continue
 
             y_data = line.get_ydata(True)

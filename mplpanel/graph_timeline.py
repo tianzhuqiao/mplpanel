@@ -5,7 +5,7 @@ import matplotlib
 from matplotlib.backends.backend_wx import cursors
 import numpy as np
 import pandas as pd
-from .graph_common import GraphObject
+from .graph_common import GraphObject, is_aux_line
 from .graph_subplot import refresh_legend
 from .utility import send_data_to_shell
 
@@ -33,6 +33,11 @@ class AuxLine:
             ratio = 1
         return np.abs(x1-x2) < threshold*ratio
 
+    def select(self, line):
+        if line in [None, self.line(), self.line2(), self.line3()]:
+            self.active = line
+        return
+
     def hit_test_vert(self, line, x, y):
         if line is None:
             return False
@@ -43,7 +48,7 @@ class AuxLine:
         lx, ly1 = trans.transform((line.get_xdata(False)[1], line.get_ydata()[0]))
         _, ly2 = trans.transform((line.get_xdata(False)[0], line.get_ydata()[1]))
         if self.is_close_to(lx, x, 10) and ly1 <= y <= ly2:
-            self.active = line
+            self.select(line)
             return True
         return False
 
@@ -57,7 +62,7 @@ class AuxLine:
         lx1, ly = trans.transform((line.get_xdata(False)[0], line.get_ydata()[0]))
         lx2, _ = trans.transform((line.get_xdata(False)[1], line.get_ydata()[1]))
         if self.is_close_to(ly, y, 10) and lx1 <= x <= lx2:
-            self.active = line
+            self.select(line)
             return True
         return False
 
@@ -70,6 +75,8 @@ class AuxLine:
         for obj in [self.line, self.line2, self.line3, self.text]:
             if obj is not None and obj() is not None:
                 obj().set_visible(show)
+                if self.active == obj():
+                    self.select(None)
 
     def clear(self):
         for line in [self.line, self.line2, self.line3, self.text]:
@@ -164,8 +171,7 @@ class XAuxLine(AuxLine):
         if xdata is None:
             xdata = self.active.get_xdata(False)[0]
         for l in self.active.axes.lines:
-            label = l.get_label()
-            if label.startswith('_bsm'):
+            if is_aux_line(l):
                 # legend is not visible
                 continue
             lx = l.get_xdata(False)
@@ -195,6 +201,19 @@ class XAuxLine(AuxLine):
             else:
                 self.text().set_text(f'{abs(start-end):g}')
             self.text().set_x(start+ (end-start)/2)
+
+    def show(self, show=True):
+        super().show(show)
+        if show and wx.GetKeyState(wx.WXK_SHIFT):
+            ax = self.ax()
+            if ax is None:
+                return
+            # move into view
+            xdata = np.mean(ax.get_xlim())
+            self.select(self.line())
+            self.update_line12(xdata)
+            self.select(self.line2())
+            self.update_line12(xdata)
 
 class YAuxLine(AuxLine):
     # labels for x-axis aux line
@@ -271,6 +290,18 @@ class YAuxLine(AuxLine):
             self.text().set_text(f'{abs(start-end):g}')
             self.text().set_y((start+end)/2)
 
+    def show(self, show=True):
+        super().show(show)
+        if show and wx.GetKeyState(wx.WXK_SHIFT):
+            ax = self.ax()
+            if ax is None:
+                return
+            # move into view
+            ydata = np.mean(ax.get_ylim())
+            self.select(self.line())
+            self.update_line12(ydata)
+            self.select(self.line2())
+            self.update_line12(ydata)
 
 class AxLine:
     # labels for main timeline
@@ -287,12 +318,6 @@ class AxLine:
         # y-axis
         self.y_aux_line = YAuxLine(ax)
 
-        # active line, used for moving with mouse
-        self.active = None
-
-        # x-axis, vertical line, used for moving with key
-        self.axvline_idx = 0
-
     def update(self):
         ax = self.ax()
         if ax is None:
@@ -308,21 +333,29 @@ class AxLine:
         self.x_aux_line.create_if_needed()
         self.y_aux_line.create_if_needed()
 
+    def get_closest_data(self, l,  xdata=None):
+        # get the data point in line l that is closest to xdata
+        if xdata is None:
+            xdata = self.axvline().get_xdata(False)[0]
+        lx = l.get_xdata(False)
+        ly = l.get_ydata()
+        idx = np.argmin(np.abs(lx - xdata))
+        return idx, lx[idx], ly[idx]
+
     def update_legend(self, xdata = None):
         # update x-axis axvline and legend
         if xdata is None:
             xdata = self.axvline().get_xdata(False)[0]
-        x, y, idx = None, None, None
+        x, idx = None, None
         x_min = np.inf
         for l in self.ax().lines:
             label = l.get_label()
-            if label.startswith('_bsm'):
+            if is_aux_line(l):
                 # ignore _bsm line
                 continue
-            lx = l.get_xdata(False)
-            lidx = np.argmin(np.abs(lx - xdata))
-            if np.abs(lx[lidx] - xdata) < x_min:
-                x_min = np.abs(lx[lidx] - xdata)
+            lidx, lx, ly = self.get_closest_data(l, xdata)
+            if np.abs(lx - xdata) < x_min:
+                x_min = np.abs(lx - xdata)
                 x = l.get_xdata()
                 idx = lidx
             if label.startswith('_'):
@@ -333,13 +366,10 @@ class AxLine:
             if len(label) > 1:
                 label = label[:-1]
             label = ' '.join(label)
-            y = l.get_ydata()
-            #idx = np.argmin(np.abs(x - xdata))
-            label = f'{label} {y[lidx]:g}'
+            label = f'{label} {ly:g}'
             l.set_label(label)
         if x is not None and idx is not None:
             self.axvline().set_xdata([x[idx], x[idx]])
-            self.axvline_idx = idx
 
     def hit_test(self, x, y):
         # check if (x, y) is close to the axvline in ax
@@ -357,7 +387,6 @@ class AxLine:
             else:
                 ratio = 1
             if np.abs(lx-x) < 10*ratio and ly1 <= y <= ly2:
-                self.active = line
                 return True, line, True
 
         ret, line, vert = self.x_aux_line.hit_test(x, y)
@@ -422,6 +451,9 @@ class Timeline(GraphObject):
 
     def mouse_pressed(self, event):
         if not event.inaxes:
+            return
+
+        if event.button != matplotlib.backend_bases.MouseButton.LEFT:
             return
 
         x, y = event.x, event.y
@@ -543,33 +575,60 @@ class Timeline(GraphObject):
     def mouse_released(self, event):
         self.draggable = False
 
-
-
     def _get_next_x_data(self, ax, xdata, step=1):
+
+        xdata_n = xdata
+        dis_m = np.inf
         for l in ax.lines:
             if self.is_aux_line(l):
                 continue
             x = l.get_xdata(False)
             idx = np.argmin(np.abs(x - xdata))
-            idx = min(max(idx + step, 0), len(x)-1)
-            return x[idx]
-        return None
+            if x[idx] < xdata and step < 0:
+                # move to left, but "current" idx is on xdata's left, count idx
+                # as 1st point
+                idx = min(max(idx + step + 1, 0), len(x)-1)
+            elif x[idx] > xdata and step > 0:
+                idx = min(max(idx + step - 1, 0), len(x)-1)
+            else:
+                idx = min(max(idx + step, 0), len(x)-1)
+
+            # make sure it is in the right direction, and ignore duplicate x values
+            while (x[idx] <= xdata and step > 0) or (x[idx] >= xdata and step < 0):
+                idx_n = min(max(idx + np.sign(step), 0), len(x)-1)
+                if idx == idx_n:
+                    break
+                idx = idx_n
+            dis = x[idx] - xdata
+            if dis_m > abs(dis) and np.sign(dis) == np.sign(step):
+                # only move to x[idx] if it is in the correct direction and
+                # the make dis_m smaller
+                dis_m = abs(dis)
+                xdata_n = x[idx]
+
+        return xdata_n
 
     def key_pressed(self, event):
         """Callback for key presses."""
         if not event.inaxes:
             return
         if event.key in ['shift+left', 'left', 'shift+right', 'right']:
-            if self.active_axvline:
+            axvline = self.active_axvline
+            if axvline is None:
+                # no active line, use the main timeline
+                axvline = self.get(event.inaxes, create=False)
+                if axvline is not None:
+                    axvline = axvline.axvline()
+            if axvline:
                 # get the current x value
-                xdata = self.active_axvline.get_xdata(False)
+                xdata = axvline.get_xdata(False)
                 step = 10 if 'shift' in event.key else 1
                 if 'left' in event.key:
                     step = -step
                 x = self._get_next_x_data(event.inaxes, xdata[0], step)
-                if self.active_axvline.get_label() in [XAuxLine.line_label, XAuxLine.line2_label]:
+                if axvline.get_label() in [XAuxLine.line_label, XAuxLine.line2_label]:
                     self.update_x_axvline([event.inaxes], x)
-                elif self.active_axvline.get_label() == AxLine.axvline_label:
+                elif axvline.get_label() == AxLine.axvline_label:
                     self.update_legend([event.inaxes], x)
 
     def create_axvline_if_needed(self, ax):
@@ -604,10 +663,9 @@ class Timeline(GraphObject):
             axline = self.get(ax, create=False)
             if axline is None:
                 continue
-            idx = axline.axvline_idx
             for l in ax.lines:
                 label = l.get_label()
-                if label.startswith('_bsm'):
+                if self.is_aux_line(l):
                     continue
                 if not label.startswith('_'):
                     # visible legend, remove value first
@@ -615,13 +673,16 @@ class Timeline(GraphObject):
                     if len(label) > 1:
                         label = label[:-1]
                     label = ' '.join(label)
-                x = l.get_xdata()
-                y = l.get_ydata()
+                _, lx, ly = axline.get_closest_data(l)
                 sharex = self.get_sharex(ax)
                 if sharex not in data:
                     data[sharex] = pd.DataFrame()
-                    data[sharex]['x'] = [x[idx]]
-                data[sharex][label] = [y[idx]]
+                    data[sharex]['x'] = [lx]
+                if label in data[sharex]:
+                    # some line has the same label
+                    tmp = [k for k in data[sharex] if k.startswith(label)]
+                    label = f"{label}_{len(tmp)+1}"
+                data[sharex][label] = [ly]
         data = list(data.values())
         if len(data) == 1:
             data = data[0]

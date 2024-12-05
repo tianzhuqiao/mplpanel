@@ -2,6 +2,10 @@ import wx
 import wx.py.dispatcher as dp
 import numpy as np
 
+def is_aux_line(l):
+    label = l.get_label()
+    return label.startswith('_bsm')
+
 class GraphObject():
     def __init__(self, figure):
         self.figure = figure
@@ -138,8 +142,7 @@ class GraphObject():
 
     @classmethod
     def is_aux_line(cls, l):
-        label = l.get_label()
-        return label.startswith('_bsm')
+        return is_aux_line(l)
 
     def has_visible_lines(self, ax):
         for l in ax.lines:
