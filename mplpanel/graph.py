@@ -1,3 +1,4 @@
+from packaging.version import Version
 import wx
 import wx.py.dispatcher as dp
 import numpy as np
@@ -114,13 +115,12 @@ class Toolbar(GraphToolbar):
     legend_loc_ids = {}
 
     def __init__(self, canvas, figure):
-        if matplotlib.__version__ < '3.3.0':
+        if Version(matplotlib.__version__) < Version('3.3.0'):
             self._init_toolbar = self.init_toolbar
         else:
             self._init_toolbar = self.init_toolbar_empty
         GraphToolbar.__init__(self, canvas)
-
-        if matplotlib.__version__ >= '3.3.0':
+        if Version(matplotlib.__version__) >= Version('3.3.0'):
             self.init_toolbar()
         self.figure = figure
         self.datacursor = DataCursor(self.figure, self)
