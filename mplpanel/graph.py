@@ -458,6 +458,8 @@ class Toolbar(GraphToolbar):
                     ax.set_xlim(xlim)
                 if ax in sharey:
                     ax.set_ylim(ylim)
+            # auto scale the figure to remove the impact from the previous lines
+            self.do_auto_scale(axes)
         elif cmd in self.ID_LINES:
             i = 0
             for ax in axes:

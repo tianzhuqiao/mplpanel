@@ -82,7 +82,11 @@ class AuxLine:
         for line in [self.line, self.line2, self.line3, self.text]:
             if line is None or line() is None:
                 continue
-            line().remove()
+            try:
+                line().remove()
+            except:
+                # the line may have already be deleted
+                pass
         self.line = None
         self.line2 = None
         self.line3 = None
@@ -93,6 +97,15 @@ class AuxLine:
 
     def update_line3(self, d):
         pass
+
+    def get_distance_as_text(self, start, end):
+        if isinstance(start, datetime.date):
+            return f'{abs((start-end).total_seconds()):g}'
+        else:
+            if isinstance(start, np.unsignedinteger) or isinstance(start, np.unsignedinteger):
+                start = int(start)
+                end = int(end)
+            return f'{abs(start-end):g}'
 
 class XAuxLine(AuxLine):
     # labels for x-axis aux line
@@ -196,10 +209,8 @@ class XAuxLine(AuxLine):
 
             start, end = min(start, end), max(start, end)
             self.line3().set_xdata([start, end])
-            if isinstance(start, datetime.date):
-                self.text().set_text(f'{abs((start-end).total_seconds()):g}')
-            else:
-                self.text().set_text(f'{abs(start-end):g}')
+            dis = self.get_distance_as_text(start, end)
+            self.text().set_text(dis)
             self.text().set_x(start+ (end-start)/2)
 
     def show(self, show=True):
@@ -287,7 +298,8 @@ class YAuxLine(AuxLine):
             end = self.line2().get_ydata()[0]
             start, end = min(start, end), max(start, end)
             self.line3().set_ydata([start, end])
-            self.text().set_text(f'{abs(start-end):g}')
+            dis = self.get_distance_as_text(start, end)
+            self.text().set_text(dis)
             self.text().set_y((start+end)/2)
 
     def show(self, show=True):
@@ -406,7 +418,12 @@ class AxLine:
             label = ' '.join(label)
             l.set_label(label)
         if self.axvline() is not None:
-            self.axvline().remove()
+            try:
+                self.axvline().remove()
+            except:
+                # the ax line may be deleted by the user
+                pass
+            self.axvline = None
         self.x_aux_line.clear()
         self.y_aux_line.clear()
 
