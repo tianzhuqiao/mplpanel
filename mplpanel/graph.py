@@ -427,7 +427,6 @@ class Toolbar(GraphToolbar):
             for ax in axes:
                 # notify others that we are planning to delete the subplot.
                 dp.send('graph.removing_line', figure=self.figure, lines = ax.lines)
-                ax.cla()
                 del_subplot(ax)
                 dp.send('graph.removed_line', figure=self.figure, axes=ax)
             # if the deleted axes share the axes with others, update the other
@@ -443,21 +442,14 @@ class Toolbar(GraphToolbar):
             sharex = get_sharex(self.figure.axes)
             sharey = get_sharey(self.figure.axes)
             for ax in axes:
-                grid_on = any(line.get_visible() for line in ax.get_xgridlines() + ax.get_ygridlines())
                 dp.send('graph.removing_line', figure=self.figure, lines = ax.lines)
-                xlim = ax.get_xlim()
-                ylim = ax.get_ylim()
-                ax.cla()
+                for line in ax.lines:
+                    if GraphObject.is_aux_line(line):
+                        continue
+                    line.remove()
+                ax.set_prop_cycle(None)
+                refresh_legend(ax)
                 dp.send('graph.removed_line', figure=self.figure, axes=ax)
-                if grid_on:
-                    ax.grid(True)
-                # if ax shares itself to other axes, but none axes shares it
-                # to ax, then cla() will set the limit to [0, 1], keep the
-                # limit as before
-                if ax in sharex:
-                    ax.set_xlim(xlim)
-                if ax in sharey:
-                    ax.set_ylim(ylim)
             # auto scale the figure to remove the impact from the previous lines
             self.do_auto_scale(axes)
         elif cmd in self.ID_LINES:
