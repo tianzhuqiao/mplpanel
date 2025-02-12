@@ -450,8 +450,6 @@ class Toolbar(GraphToolbar):
                 ax.set_prop_cycle(None)
                 refresh_legend(ax)
                 dp.send('graph.removed_line', figure=self.figure, axes=ax)
-            # auto scale the figure to remove the impact from the previous lines
-            self.do_auto_scale(axes)
         elif cmd in self.ID_LINES:
             i = 0
             for ax in axes:
