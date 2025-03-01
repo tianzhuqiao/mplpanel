@@ -880,12 +880,12 @@ class MPLPanel(wx.Panel):
             dp.send('frame.delete_panel', panel=self)
             wx.WakeUpIdle()
 
-    def Destroy(self, *args, **kwargs):
+    def Destroy(self):
         self.isdestory = True
         self.close_event()
         self.canvas.stop_event_loop()
         Gcf.destroy(self.num)
-        return super().Destroy(*args, **kwargs)
+        return super().Destroy()
 
     def show(self):
         """show figure"""
